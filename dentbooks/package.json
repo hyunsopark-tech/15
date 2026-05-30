@@ -13,6 +13,7 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "lucide-react": "^1.17.0",
+    "papaparse": "^5.5.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-scripts": "5.0.1",
@@ -44,5 +45,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@types/papaparse": "^5.5.2"
   }
 }

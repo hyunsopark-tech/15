@@ -1,6 +1,114 @@
 /* Layout */
 .layout { display: flex; min-height: 100vh; }
 
+/* ── Upload Page ─────────────────────────────────────────────────────────── */
+.upload-page { padding: 28px; }
+.upload-page-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.upload-progress-pill {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 600; color: var(--gray-600);
+  flex-shrink: 0;
+}
+.up-pill-bar {
+  width: 120px; height: 8px;
+  background: var(--gray-200);
+  border-radius: 8px; overflow: hidden;
+}
+.up-pill-fill {
+  height: 100%; border-radius: 8px;
+  background: var(--primary);
+  transition: width .4s ease;
+}
+
+.upload-how-to {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.how-title { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+.how-list { padding-left: 20px; }
+.how-list li { font-size: 13px; color: var(--gray-700); margin-bottom: 4px; }
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 18px;
+}
+
+.upload-card {
+  background: #fff;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+  transition: border-color .2s, box-shadow .2s;
+}
+.upload-card:hover { box-shadow: var(--shadow-md); }
+
+.upload-card-header {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin-bottom: 12px;
+}
+.upload-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.upload-meta { flex: 1; }
+.upload-label { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+.upload-od-path { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+.upload-badge-done {
+  font-size: 11px; font-weight: 700;
+  color: var(--success);
+  background: var(--success-light);
+  border-radius: 20px; padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.upload-desc { font-size: 12px; color: var(--gray-500); margin-bottom: 6px; }
+.upload-columns { font-size: 11px; color: var(--gray-500); margin-bottom: 4px; }
+.upload-columns code { font-family: 'Courier New', monospace; color: var(--gray-600); font-size: 10.5px; }
+.upload-feeds { font-size: 11px; color: var(--primary); margin-bottom: 12px; }
+.upload-feeds em { font-style: normal; font-weight: 600; }
+
+.drop-zone {
+  display: block;
+  border: 2px dashed var(--gray-300);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.drop-zone:hover, .drop-zone.dragging {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.drop-zone.loaded { border-color: var(--success); background: var(--success-light); }
+
+.dz-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.dz-prompt { font-size: 13px; font-weight: 600; color: var(--gray-700); }
+.dz-browse { color: var(--primary); text-decoration: underline; }
+.dz-hint { font-size: 11px; color: var(--gray-400); }
+
+.dz-loaded { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.dz-filename { font-size: 13px; font-weight: 600; color: var(--success); }
+.dz-rowcount { font-size: 11px; color: var(--gray-500); }
+.dz-reupload { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+.upload-error {
+  margin-top: 8px;
+  font-size: 12px; color: var(--danger);
+  background: var(--danger-light);
+  border-radius: 6px; padding: 6px 10px;
+}
+
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-w);
