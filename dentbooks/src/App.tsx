@@ -1,455 +1,588 @@
 import React, { useState } from 'react';
 import './App.css';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DashboardProvider, useDashboard } from './upload/DashboardContext';
-import UploadPage from './upload/UploadPage';
 
-// ── Static seed data (shown when no report uploaded yet) ────────────────────
+// ── Types ────────────────────────────────────────────────────────────────────
 
-const seedAppointments = [
-  { id:1, time:'08:30', name:'Sarah Mitchell', type:'Teeth Cleaning',  status:'arrived',   initials:'SM', color:'#2563eb' },
-  { id:2, time:'09:00', name:'James Okafor',   type:'Root Canal',      status:'confirmed', initials:'JO', color:'#7c3aed' },
-  { id:3, time:'09:45', name:'Priya Sharma',   type:'Orthodontics',    status:'confirmed', initials:'PS', color:'#db2777' },
-  { id:4, time:'10:30', name:'David Chen',     type:'Tooth Extraction',status:'pending',   initials:'DC', color:'#ea580c' },
-  { id:5, time:'11:00', name:'Maria Lopez',    type:'Dental Implant',  status:'confirmed', initials:'ML', color:'#16a34a' },
-  { id:6, time:'11:30', name:'Tom Brewer',     type:'Whitening',       status:'cancelled', initials:'TB', color:'#0891b2' },
-  { id:7, time:'13:00', name:'Anna Nguyen',    type:'X-Ray + Exam',    status:'confirmed', initials:'AN', color:'#854d0e' },
-  { id:8, time:'14:00', name:'Robert Stone',   type:'Filling',         status:'pending',   initials:'RS', color:'#1d4ed8' },
+type ContactStatus = 'new' | 'called' | 'texted' | 'left-vm' | 'scheduled' | 'declined' | 'no-answer';
+type ClaimStatus   = 'filed' | 'pending' | 'partial' | 'needs-appeal' | 'resolved' | 'write-off';
+
+interface RecallPatient {
+  id: number;
+  name: string;
+  phone: string;
+  lastVisit: string;   // e.g. "Dec 2024"
+  daysOverdue: number;
+  provider: string;
+  status: ContactStatus;
+  attempts: number;
+  lastContact: string;
+  notes: string;
+}
+
+interface TxPatient {
+  id: number;
+  name: string;
+  phone: string;
+  treatmentValue: number;
+  procedures: string;
+  planDate: string;
+  daysSincePlan: number;
+  status: ContactStatus;
+  attempts: number;
+  lastContact: string;
+  notes: string;
+}
+
+interface ArClaim {
+  id: number;
+  name: string;
+  claimAmount: number;
+  patientPortion: number;
+  insurancePortion: number;
+  insuranceName: string;
+  dateFiled: string;
+  daysOutstanding: number;
+  status: ClaimStatus;
+  lastAction: string;
+  notes: string;
+}
+
+// ── Seed data ────────────────────────────────────────────────────────────────
+
+const seedRecall: RecallPatient[] = [
+  { id:1,  name:'Margaret Collins',  phone:'(312) 555-0142', lastVisit:'Nov 2024', daysOverdue:211, provider:'Dr. Kim',    status:'left-vm',  attempts:2, lastContact:'May 28', notes:'' },
+  { id:2,  name:'David Thornton',    phone:'(312) 555-0287', lastVisit:'Dec 2024', daysOverdue:183, provider:'Dr. Kim',    status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:3,  name:'Sandra Wu',         phone:'(773) 555-0319', lastVisit:'Jan 2025', daysOverdue:152, provider:'Dr. Lee',    status:'called',   attempts:1, lastContact:'May 30', notes:'' },
+  { id:4,  name:'Robert Alvarez',    phone:'(312) 555-0455', lastVisit:'Jan 2025', daysOverdue:148, provider:'Dr. Kim',    status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:5,  name:'Patricia Nguyen',   phone:'(773) 555-0521', lastVisit:'Feb 2025', daysOverdue:121, provider:'Dr. Lee',    status:'texted',   attempts:1, lastContact:'May 29', notes:'' },
+  { id:6,  name:'James Harrison',    phone:'(312) 555-0688', lastVisit:'Feb 2025', daysOverdue:118, provider:'Dr. Kim',    status:'no-answer',attempts:3, lastContact:'May 27', notes:'' },
+  { id:7,  name:'Linda Patel',       phone:'(708) 555-0734', lastVisit:'Mar 2025', daysOverdue:93,  provider:'Dr. Lee',    status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:8,  name:'Thomas Brennan',    phone:'(312) 555-0812', lastVisit:'Mar 2025', daysOverdue:87,  provider:'Dr. Kim',    status:'called',   attempts:1, lastContact:'May 31', notes:'Prefers calls after 5pm' },
+  { id:9,  name:'Angela Foster',     phone:'(773) 555-0967', lastVisit:'Apr 2025', daysOverdue:62,  provider:'Dr. Lee',    status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:10, name:'Kevin Martinez',    phone:'(312) 555-1043', lastVisit:'Apr 2025', daysOverdue:58,  provider:'Dr. Kim',    status:'texted',   attempts:1, lastContact:'May 31', notes:'' },
 ];
 
-const seedRevenueData = [
-  { month:'Jan', revenue:18400, target:20000 },{ month:'Feb', revenue:21200, target:20000 },
-  { month:'Mar', revenue:19800, target:22000 },{ month:'Apr', revenue:24600, target:22000 },
-  { month:'May', revenue:26100, target:24000 },{ month:'Jun', revenue:23400, target:24000 },
-  { month:'Jul', revenue:28900, target:26000 },{ month:'Aug', revenue:31200, target:28000 },
-  { month:'Sep', revenue:29800, target:28000 },{ month:'Oct', revenue:33400, target:30000 },
-  { month:'Nov', revenue:35100, target:32000 },{ month:'Dec', revenue:38200, target:34000 },
+const seedTx: TxPatient[] = [
+  { id:1,  name:'David Thornton',    phone:'(312) 555-0287', treatmentValue:4200, procedures:'Crown #19, Crown #30',           planDate:'Mar 15', daysSincePlan:77, status:'left-vm',  attempts:2, lastContact:'May 29', notes:'' },
+  { id:2,  name:'Angela Foster',     phone:'(773) 555-0967', treatmentValue:3850, procedures:'Implant #14',                    planDate:'Apr 2',  daysSincePlan:59, status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:3,  name:'Robert Alvarez',    phone:'(312) 555-0455', treatmentValue:2900, procedures:'Root Canal #3, Build-up, Crown', planDate:'Feb 20', daysSincePlan:100,status:'called',   attempts:3, lastContact:'May 28', notes:'Insurance pre-auth pending' },
+  { id:4,  name:'Sandra Wu',         phone:'(773) 555-0319', treatmentValue:2100, procedures:'Veneers #8, #9, #10',            planDate:'Apr 18', daysSincePlan:43, status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:5,  name:'Patricia Nguyen',   phone:'(773) 555-0521', treatmentValue:1600, procedures:'Fillings x4 (quadrant)',         planDate:'May 5',  daysSincePlan:26, status:'texted',   attempts:1, lastContact:'May 30', notes:'' },
+  { id:6,  name:'Kevin Martinez',    phone:'(312) 555-1043', treatmentValue:1400, procedures:'Extraction #32, Partial denture',planDate:'May 12', daysSincePlan:19, status:'new',      attempts:0, lastContact:'—',      notes:'' },
+  { id:7,  name:'Thomas Brennan',    phone:'(312) 555-0812', treatmentValue:950,  procedures:'Filling #18, Night guard',       planDate:'May 20', daysSincePlan:11, status:'called',   attempts:1, lastContact:'May 31', notes:'' },
 ];
 
-const seedPatients = [
-  { id:1, name:'Sarah Mitchell', initials:'SM', color:'#2563eb', lastVisit:'May 30, 2026', treatment:'Cleaning',        balance:'$0',   status:'Active'  },
-  { id:2, name:'James Okafor',   initials:'JO', color:'#7c3aed', lastVisit:'May 28, 2026', treatment:'Root Canal #2',   balance:'$450', status:'Active'  },
-  { id:3, name:'Priya Sharma',   initials:'PS', color:'#db2777', lastVisit:'May 27, 2026', treatment:'Retainer Check',  balance:'$0',   status:'Active'  },
-  { id:4, name:'David Chen',     initials:'DC', color:'#ea580c', lastVisit:'May 25, 2026', treatment:'Extraction',      balance:'$180', status:'Overdue' },
-  { id:5, name:'Maria Lopez',    initials:'ML', color:'#16a34a', lastVisit:'May 22, 2026', treatment:'Implant Consult', balance:'$0',   status:'Active'  },
+const seedAr: ArClaim[] = [
+  { id:1,  name:'James Harrison',    claimAmount:1840, patientPortion:368, insurancePortion:1472, insuranceName:'Delta Dental PPO',  dateFiled:'Mar 3',  daysOutstanding:89, status:'needs-appeal', lastAction:'Denied — missing X-ray', notes:'' },
+  { id:2,  name:'Margaret Collins',  claimAmount:1250, patientPortion:250, insurancePortion:1000, insuranceName:'MetLife',           dateFiled:'Mar 18', daysOutstanding:74, status:'pending',      lastAction:'Filed, no response',     notes:'' },
+  { id:3,  name:'Robert Alvarez',    claimAmount:980,  patientPortion:196, insurancePortion:784,  insuranceName:'Cigna DPPO',        dateFiled:'Apr 1',  daysOutstanding:60, status:'pending',      lastAction:'Called ins 5/20',        notes:'' },
+  { id:4,  name:'Linda Patel',       claimAmount:760,  patientPortion:152, insurancePortion:608,  insuranceName:'Aetna DMO',         dateFiled:'Apr 14', daysOutstanding:47, status:'partial',      lastAction:'Partial $380 received',  notes:'Appealing remaining $380' },
+  { id:5,  name:'Sandra Wu',         claimAmount:640,  patientPortion:128, insurancePortion:512,  insuranceName:'Blue Cross BCBS',   dateFiled:'Apr 22', daysOutstanding:39, status:'filed',        lastAction:'Submitted electronically',notes:'' },
+  { id:6,  name:'Kevin Martinez',    claimAmount:520,  patientPortion:520, insurancePortion:0,    insuranceName:'Self-pay',          dateFiled:'May 1',  daysOutstanding:30, status:'pending',      lastAction:'Statement sent',         notes:'Payment plan agreed $100/mo' },
+  { id:7,  name:'Patricia Nguyen',   claimAmount:390,  patientPortion:78,  insurancePortion:312,  insuranceName:'Guardian',          dateFiled:'May 10', daysOutstanding:21, status:'filed',        lastAction:'Submitted electronically',notes:'' },
+  { id:8,  name:'Angela Foster',     claimAmount:280,  patientPortion:56,  insurancePortion:224,  insuranceName:'Delta Dental PPO',  dateFiled:'May 18', daysOutstanding:13, status:'filed',        lastAction:'Submitted electronically',notes:'' },
 ];
 
-const seedTasks = [
-  { id:1, text:'Call back Tom Brewer re: cancellation', meta:'High priority', defaultDone:false },
-  { id:2, text:'Order composite resin (shade A3)',       meta:'Inventory',     defaultDone:false },
-  { id:3, text:'Send recall reminders — June batch',    meta:'48 patients',   defaultDone:true  },
-  { id:4, text:'Review insurance claims — May',          meta:'12 pending',    defaultDone:false },
-  { id:5, text:'Update sterilization log',              meta:'Compliance',    defaultDone:true  },
+// ── Protocol definitions ─────────────────────────────────────────────────────
+
+const RECALL_PROTOCOL = [
+  { day: 0,  label: 'Day 1',  action: 'Send text + email reminder with online booking link' },
+  { day: 3,  label: 'Day 3',  action: 'Phone call if no response to text/email' },
+  { day: 7,  label: 'Day 7',  action: 'Second call — leave voicemail with callback number' },
+  { day: 14, label: 'Day 14', action: 'Final call + mailed postcard reminder' },
+  { day: 30, label: 'Day 30', action: 'Mark as non-responsive, schedule for next recall cycle' },
 ];
 
-const seedActivity = [
-  { icon:'💳', bg:'#eff6ff', text:'Payment received from James Okafor — $850',          time:'2 min ago'  },
-  { icon:'📅', bg:'#f0fdf4', text:'New appointment booked: Anna Nguyen, 1:00 PM today',  time:'18 min ago' },
-  { icon:'⚠️', bg:'#fffbeb', text:'Tom Brewer cancelled his 11:30 AM slot',              time:'34 min ago' },
-  { icon:'📋', bg:'#fef2f2', text:'Insurance claim submitted for Robert Stone',           time:'1 hr ago'   },
-  { icon:'👤', bg:'#f5f3ff', text:'New patient registered: Olivia Park',                 time:'2 hr ago'   },
+const TX_PROTOCOL = [
+  { day: 0,  label: 'Day 1',  action: 'Call patient — review treatment and answer questions' },
+  { day: 3,  label: 'Day 3',  action: 'Follow-up call or text if no response' },
+  { day: 7,  label: 'Day 7',  action: 'Send written treatment summary with cost breakdown' },
+  { day: 14, label: 'Day 14', action: 'Third contact — offer flexible scheduling or payment plan' },
+  { day: 30, label: 'Day 30', action: 'Final outreach — confirm patient intent, update chart notes' },
 ];
 
-// ── Nav ──────────────────────────────────────────────────────────────────────
-
-const navItems = [
-  { icon:'🏠', label:'Dashboard',   section:'main',     badge: null },
-  { icon:'📅', label:'Appointments',section:'main',     badge: '8' },
-  { icon:'👥', label:'Patients',    section:'main',     badge: null },
-  { icon:'💊', label:'Treatments',  section:'clinical', badge: null },
-  { icon:'🦷', label:'Charting',    section:'clinical', badge: null },
-  { icon:'💰', label:'Billing',     section:'billing',  badge: '3' },
-  { icon:'📄', label:'Insurance',   section:'billing',  badge: null },
-  { icon:'📊', label:'Reports',     section:'admin',    badge: null },
-  { icon:'📤', label:'Upload Data', section:'admin',    badge: null },
-  { icon:'⚙️', label:'Settings',   section:'admin',    badge: null },
+const AR_PROTOCOL = [
+  { days: '1–30',  label: '0–30 days',  action: 'Verify claim was received by insurance — confirm claim number' },
+  { days: '31–60', label: '31–60 days', action: 'Call insurance to check status — document rep name and reference #' },
+  { days: '61–90', label: '61–90 days', action: 'File appeal if denied. Re-submit with supporting records' },
+  { days: '90+',   label: '90+ days',   action: 'Escalate to billing manager — consider collections or write-off review' },
 ];
-
-const sectionLabels: Record<string,string> = { main:'Main', clinical:'Clinical', billing:'Billing', admin:'Admin' };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const avatarColors = ['#2563eb','#7c3aed','#db2777','#ea580c','#16a34a','#0891b2','#854d0e'];
+const avatarColors = ['#2563eb','#7c3aed','#db2777','#ea580c','#16a34a','#0891b2','#854d0e','#1d4ed8','#9333ea','#0f766e'];
+
+function avatarColor(name: string) {
+  let h = 0; for (const c of name) h = c.charCodeAt(0) + h * 31;
+  return avatarColors[Math.abs(h) % avatarColors.length];
+}
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
 }
-function colorFor(name: string) {
-  let h = 0; for (const c of name) h = c.charCodeAt(0) + h * 31;
-  return avatarColors[Math.abs(h) % avatarColors.length];
-}
-function fmt(n: number) { return '$' + Math.round(n).toLocaleString(); }
-function StatusBadge({ status }: { status: string }) {
-  return <span className={`appt-status status-${status}`}>{status.charAt(0).toUpperCase()+status.slice(1)}</span>;
+
+function fmt(n: number) {
+  return '$' + n.toLocaleString();
 }
 
-// ── Dashboard (data-aware) ───────────────────────────────────────────────────
+function urgencyColor(days: number, type: 'recall' | 'tx' | 'ar') {
+  if (type === 'recall') {
+    if (days >= 180) return '#dc2626';
+    if (days >= 90)  return '#d97706';
+    return '#16a34a';
+  }
+  if (type === 'tx') {
+    if (days >= 60) return '#dc2626';
+    if (days >= 21) return '#d97706';
+    return '#16a34a';
+  }
+  // ar
+  if (days >= 90) return '#dc2626';
+  if (days >= 60) return '#d97706';
+  if (days >= 30) return '#f59e0b';
+  return '#16a34a';
+}
 
-function Dashboard() {
-  const { appointments: odAppts, production, aging, newPatients, payments, uploads } = useDashboard();
-  const [tasksDone, setTasksDone] = useState<Set<number>>(new Set([3,5]));
+const contactStatusLabel: Record<ContactStatus, string> = {
+  'new':       'New',
+  'called':    'Called',
+  'texted':    'Texted',
+  'left-vm':   'Left VM',
+  'scheduled': 'Scheduled ✓',
+  'declined':  'Declined',
+  'no-answer': 'No Answer',
+};
+const contactStatusColor: Record<ContactStatus, string> = {
+  'new':       '#6b7280',
+  'called':    '#2563eb',
+  'texted':    '#7c3aed',
+  'left-vm':   '#0891b2',
+  'scheduled': '#16a34a',
+  'declined':  '#dc2626',
+  'no-answer': '#d97706',
+};
 
-  const toggleTask = (id: number) =>
-    setTasksDone(prev => { const s = new Set(prev); s.has(id)?s.delete(id):s.add(id); return s; });
+const claimStatusLabel: Record<ClaimStatus, string> = {
+  'filed':        'Filed',
+  'pending':      'Pending',
+  'partial':      'Partial Paid',
+  'needs-appeal': 'Needs Appeal',
+  'resolved':     'Resolved ✓',
+  'write-off':    'Write-Off',
+};
+const claimStatusColor: Record<ClaimStatus, string> = {
+  'filed':        '#2563eb',
+  'pending':      '#d97706',
+  'partial':      '#7c3aed',
+  'needs-appeal': '#dc2626',
+  'resolved':     '#16a34a',
+  'write-off':    '#6b7280',
+};
 
-  // Resolve appointment rows — prefer uploaded data
-  const apptRows = odAppts.length
-    ? odAppts.map((a,i) => ({
-        id: i, time: a.time, name: a.name, type: a.type,
-        status: a.status, initials: initials(a.name), color: colorFor(a.name),
-      }))
-    : seedAppointments;
+// ── Sub-components ───────────────────────────────────────────────────────────
 
-  // Revenue chart — build from production upload or fall back to seed
-  const revenueData = production.length
-    ? (() => {
-        const byMonth: Record<string,number> = {};
-        for (const p of production) {
-          const m = new Date(p.date).toLocaleString('en-US',{month:'short'});
-          byMonth[m] = (byMonth[m]||0) + p.net;
-        }
-        return Object.entries(byMonth).map(([month,revenue]) => ({ month, revenue, target: revenue*0.9 }));
-      })()
-    : seedRevenueData;
+function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: avatarColor(name), color: '#fff',
+      fontSize: size * 0.36, fontWeight: 700,
+      display:'flex', alignItems:'center', justifyContent:'center',
+      flexShrink: 0,
+    }}>{initials(name)}</div>
+  );
+}
 
-  // KPI numbers
-  const todayRevenue  = production.length ? production.reduce((s,p)=>s+p.net,0) : 3840;
-  const outstandingAR = aging.length      ? aging.reduce((s,a)=>s+a.total,0)    : 6300;
-  const newPtCount    = newPatients.length || 3;
+function StatusPill({ label, color }: { label: string; color: string }) {
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 700,
+      padding: '3px 9px', borderRadius: 20,
+      background: color + '18', color,
+      whiteSpace: 'nowrap',
+    }}>{label}</span>
+  );
+}
 
-  // Patients table — derive from aging if available, else seed
-  const patientRows = aging.length
-    ? aging.slice(0,8).map((a,i) => ({
-        id: i, name: a.name, initials: initials(a.name), color: colorFor(a.name),
-        lastVisit: '—', treatment: '—',
-        balance: a.total > 0 ? fmt(a.total) : '$0',
-        status: a.total > 90 ? 'Overdue' : 'Active',
-      }))
-    : seedPatients;
+function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      className="note-input"
+      placeholder="Add note…"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    />
+  );
+}
 
-  // Activity — prepend payment uploads
-  const activityRows = payments.slice(0,3).map(p => ({
-    icon:'💳', bg:'#eff6ff',
-    text: `Payment received from ${p.patientName} — ${fmt(p.amount)}`,
-    time: 'uploaded',
-  })).concat(seedActivity).slice(0,8);
+function ProtocolBox({ steps }: { steps: { label: string; action: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="protocol-box">
+      <button className="protocol-toggle" onClick={() => setOpen(o => !o)}>
+        {open ? '▾' : '▸'} Follow-up Protocol
+      </button>
+      {open && (
+        <ol className="protocol-steps">
+          {steps.map((s, i) => (
+            <li key={i}><strong>{s.label}:</strong> {s.action}</li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
 
-  const hasData = uploads.length > 0;
+// ── Recall tracker ───────────────────────────────────────────────────────────
+
+function RecallTracker() {
+  const [patients, setPatients] = useState(seedRecall);
+  const [filter, setFilter]     = useState<'all' | ContactStatus>('all');
+
+  const update = (id: number, patch: Partial<RecallPatient>) =>
+    setPatients(ps => ps.map(p => p.id === id ? { ...p, ...patch } : p));
+
+  const shown = filter === 'all' ? patients : patients.filter(p => p.status === filter);
+  const totalOverdue = patients.filter(p => p.status !== 'scheduled' && p.status !== 'declined').length;
 
   return (
-    <div className="page">
-      <div className="page-header">
+    <section className="tracker-section">
+      <div className="tracker-header">
         <div>
-          <div className="page-title">Good morning, Dr. Kim 👋</div>
-          <div className="page-date">
-            {hasData
-              ? `Live data from ${uploads.length} uploaded Open Dental report${uploads.length>1?'s':''}`
-              : 'Showing sample data — upload Open Dental reports to see live data'}
-          </div>
+          <h2 className="tracker-title">📋 Overdue Recall List</h2>
+          <div className="tracker-sub">{totalOverdue} patients overdue · sorted by days since last visit</div>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button className="btn btn-secondary">📥 Export Report</button>
-          <button className="btn btn-secondary">📅 View Schedule</button>
-        </div>
-      </div>
-
-      {/* Upload nudge */}
-      {!hasData && (
-        <div style={{
-          background:'#fffbeb', border:'1px solid #fde68a', borderRadius:10,
-          padding:'12px 18px', marginBottom:20, display:'flex',
-          alignItems:'center', gap:12, fontSize:13,
-        }}>
-          <span>📤</span>
-          <span>
-            <strong>Connect your data:</strong> Go to <strong>Upload Data</strong> in the sidebar and drop your Open Dental CSV exports to populate the dashboard with real numbers.
-          </span>
-        </div>
-      )}
-
-      {/* KPI row */}
-      <div className="kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <div className="kpi-label">Today's Revenue</div>
-            <div className="kpi-icon" style={{ background:'#eff6ff' }}>💰</div>
-          </div>
-          <div className="kpi-value">{fmt(todayRevenue)}</div>
-          <div className="kpi-change up">↑ 12% <span>vs last Friday</span></div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <div className="kpi-label">Appointments</div>
-            <div className="kpi-icon" style={{ background:'#f0fdf4' }}>📅</div>
-          </div>
-          <div className="kpi-value">{apptRows.length}</div>
-          <div className="kpi-change up">↑ 2 <span>more than avg</span></div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <div className="kpi-label">New Patients</div>
-            <div className="kpi-icon" style={{ background:'#f5f3ff' }}>👤</div>
-          </div>
-          <div className="kpi-value">{newPtCount}</div>
-          <div className="kpi-change up">↑ 50% <span>vs last week</span></div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <div className="kpi-label">Outstanding A/R</div>
-            <div className="kpi-icon" style={{ background:'#fef2f2' }}>⚠️</div>
-          </div>
-          <div className="kpi-value">{fmt(outstandingAR)}</div>
-          <div className="kpi-change down">↑ $420 <span>since yesterday</span></div>
+        <div className="tracker-pills">
+          {(['all','new','called','texted','left-vm','no-answer','scheduled'] as const).map(s => (
+            <button key={s} className={`filter-pill ${filter===s?'active':''}`} onClick={()=>setFilter(s)}>
+              {s==='all' ? `All (${patients.length})` : contactStatusLabel[s]}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Appointments + Revenue */}
-      <div className="section-grid">
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              Today's Appointments
-              {odAppts.length > 0 && <span style={{ marginLeft:8, fontSize:11, color:'var(--success)', fontWeight:600 }}>● Live</span>}
-            </div>
-            <button className="card-action">View all →</button>
-          </div>
-          <div className="appt-list">
-            {apptRows.slice(0,10).map(a => (
-              <div className="appt-item" key={a.id}>
-                <div className="appt-time">{a.time}</div>
-                <div className="appt-avatar" style={{ background: a.color }}>{a.initials}</div>
-                <div className="appt-info">
-                  <div className="appt-name">{a.name}</div>
-                  <div className="appt-type">{a.type}</div>
-                </div>
-                <StatusBadge status={a.status} />
-              </div>
-            ))}
-          </div>
-        </div>
+      <ProtocolBox steps={RECALL_PROTOCOL} />
 
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              Revenue
-              {production.length > 0 && <span style={{ marginLeft:8, fontSize:11, color:'var(--success)', fontWeight:600 }}>● Live</span>}
-            </div>
-            <button className="card-action">Monthly ▾</button>
-          </div>
-          <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={revenueData} margin={{ top:4, right:4, left:-20, bottom:0 }}>
-                <defs>
-                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="month" tick={{ fontSize:11, fill:'#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v=>`$${(v/1000).toFixed(0)}k`} tick={{ fontSize:11, fill:'#9ca3af' }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v:any)=>['$'+v.toLocaleString()]} contentStyle={{ borderRadius:8, border:'1px solid #e5e7eb', fontSize:12 }} />
-                <Area type="monotone" dataKey="target"  stroke="#16a34a" strokeWidth={1.5} strokeDasharray="4 2" fill="none" name="Target" />
-                <Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2} fill="url(#rev)" name="Revenue" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Patients */}
-      <div className="card" style={{ marginBottom:20 }}>
-        <div className="card-header">
-          <div className="card-title">
-            {aging.length ? 'A/R Aging — Patient Balances' : 'Recent Patients'}
-            {aging.length > 0 && <span style={{ marginLeft:8, fontSize:11, color:'var(--success)', fontWeight:600 }}>● Live</span>}
-          </div>
-          <button className="card-action">View all →</button>
-        </div>
-        <table className="patients-table">
+      <div className="tracker-table-wrap">
+        <table className="tracker-table">
           <thead>
             <tr>
               <th>Patient</th>
+              <th>Phone</th>
               <th>Last Visit</th>
-              <th>Treatment</th>
-              <th>Balance</th>
+              <th>Days Overdue</th>
+              <th>Provider</th>
+              <th>Attempts</th>
               <th>Status</th>
+              <th>Update Status</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
-            {patientRows.map(p => (
-              <tr key={p.id}>
+            {shown.map(p => (
+              <tr key={p.id} className={p.status === 'scheduled' ? 'row-done' : ''}>
                 <td>
-                  <div className="patient-name-cell">
-                    <div className="table-avatar" style={{ background: p.color }}>{p.initials}</div>
-                    {p.name}
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <Avatar name={p.name} size={30} />
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13}}>{p.name}</div>
+                      <div style={{fontSize:11,color:'var(--gray-400)'}}>Last: {p.lastContact}</div>
+                    </div>
                   </div>
                 </td>
-                <td>{p.lastVisit}</td>
-                <td>{p.treatment}</td>
-                <td style={{ fontWeight:600, color: p.balance==='$0'?'var(--success)':'var(--warning)' }}>{p.balance}</td>
-                <td><span className={`appt-status ${p.status==='Active'?'status-confirmed':'status-cancelled'}`}>{p.status}</span></td>
+                <td><a href={`tel:${p.phone}`} className="phone-link">{p.phone}</a></td>
+                <td style={{fontSize:13}}>{p.lastVisit}</td>
+                <td>
+                  <span style={{
+                    fontWeight:800, fontSize:15,
+                    color: urgencyColor(p.daysOverdue, 'recall'),
+                  }}>{p.daysOverdue}d</span>
+                </td>
+                <td style={{fontSize:13,color:'var(--gray-500)'}}>{p.provider}</td>
+                <td style={{textAlign:'center',fontWeight:700,color:p.attempts>=3?'#dc2626':'var(--gray-600)'}}>{p.attempts}</td>
+                <td><StatusPill label={contactStatusLabel[p.status]} color={contactStatusColor[p.status]} /></td>
+                <td>
+                  <select
+                    className="status-select"
+                    value={p.status}
+                    onChange={e => update(p.id, {
+                      status: e.target.value as ContactStatus,
+                      attempts: p.attempts + 1,
+                      lastContact: 'Today',
+                    })}
+                  >
+                    <option value="new">New</option>
+                    <option value="called">Called</option>
+                    <option value="texted">Texted</option>
+                    <option value="left-vm">Left VM</option>
+                    <option value="no-answer">No Answer</option>
+                    <option value="scheduled">Scheduled ✓</option>
+                    <option value="declined">Declined</option>
+                  </select>
+                </td>
+                <td>
+                  <NoteField value={p.notes} onChange={v => update(p.id, { notes: v })} />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
 
-      {/* Bottom grid */}
-      <div className="bottom-grid">
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Today's Tasks</div>
-            <button className="card-action">+ Add</button>
-          </div>
-          <div className="task-list">
-            {seedTasks.map(t => {
-              const done = tasksDone.has(t.id);
-              return (
-                <div className="task-item" key={t.id}>
-                  <div className={`task-check ${done?'done':''}`} onClick={()=>toggleTask(t.id)}>{done?'✓':''}</div>
-                  <div>
-                    <div className={`task-text ${done?'done':''}`}>{t.text}</div>
-                    <div className="task-meta">{t.meta}</div>
+// ── Unscheduled TX tracker ───────────────────────────────────────────────────
+
+function TxTracker() {
+  const [patients, setPatients] = useState(seedTx);
+  const [filter, setFilter]     = useState<'all' | ContactStatus>('all');
+
+  const update = (id: number, patch: Partial<TxPatient>) =>
+    setPatients(ps => ps.map(p => p.id === id ? { ...p, ...patch } : p));
+
+  const shown = (filter === 'all' ? patients : patients.filter(p => p.status === filter))
+    .slice().sort((a,b) => b.treatmentValue - a.treatmentValue);
+
+  const totalValue = patients
+    .filter(p => p.status !== 'scheduled' && p.status !== 'declined')
+    .reduce((s,p) => s + p.treatmentValue, 0);
+
+  return (
+    <section className="tracker-section">
+      <div className="tracker-header">
+        <div>
+          <h2 className="tracker-title">🦷 Unscheduled Treatment Plans</h2>
+          <div className="tracker-sub">{fmt(totalValue)} in unscheduled production · sorted high → low value</div>
+        </div>
+        <div className="tracker-pills">
+          {(['all','new','called','texted','left-vm','no-answer','scheduled'] as const).map(s => (
+            <button key={s} className={`filter-pill ${filter===s?'active':''}`} onClick={()=>setFilter(s)}>
+              {s==='all' ? `All (${patients.length})` : contactStatusLabel[s]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ProtocolBox steps={TX_PROTOCOL} />
+
+      <div className="tracker-table-wrap">
+        <table className="tracker-table">
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Phone</th>
+              <th>Treatment</th>
+              <th>Value</th>
+              <th>Plan Date</th>
+              <th>Days Since</th>
+              <th>Attempts</th>
+              <th>Status</th>
+              <th>Update Status</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(p => (
+              <tr key={p.id} className={p.status === 'scheduled' ? 'row-done' : ''}>
+                <td>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <Avatar name={p.name} size={30} />
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13}}>{p.name}</div>
+                      <div style={{fontSize:11,color:'var(--gray-400)'}}>Last: {p.lastContact}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Practice Health</div>
-          </div>
-          {[
-            ['🧑‍🤝‍🧑 Active Patients', '842'],
-            ['📅 Avg Daily Appts', apptRows.length > 0 ? apptRows.length.toString() : '6.4'],
-            ['💰 MTD Revenue', production.length ? fmt(production.reduce((s,p)=>s+p.net,0)) : '$38,200'],
-            ['⏱ Avg Wait Time', '7 min'],
-          ].map(([label,val]) => (
-            <div className="stat-row" key={label}>
-              <div className="stat-label">{label}</div>
-              <div className="stat-val">{val}</div>
-            </div>
-          ))}
-          <div className="stat-bar-wrap">
-            <div className="stat-bar-label"><span>Chair utilisation</span><span>81%</span></div>
-            <div className="stat-bar"><div className="stat-bar-fill" style={{ width:'81%', background:'var(--success)' }} /></div>
-          </div>
-          <div className="stat-bar-wrap">
-            <div className="stat-bar-label"><span>Recall rate</span><span>74%</span></div>
-            <div className="stat-bar"><div className="stat-bar-fill" style={{ width:'74%' }} /></div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Recent Activity</div>
-          </div>
-          <div className="activity-list">
-            {activityRows.map((a,i) => (
-              <div className="activity-item" key={i}>
-                <div className="activity-dot" style={{ background: a.bg }}>{a.icon}</div>
-                <div>
-                  <div className="activity-text">{a.text}</div>
-                  <div className="activity-time">{a.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Root ─────────────────────────────────────────────────────────────────────
-
-function AppInner() {
-  const [activeNav, setActiveNav] = useState('Dashboard');
-  return (
-    <DashboardProvider onNavigate={setActiveNav}>
-      <Shell2 activeNav={activeNav} setActiveNav={setActiveNav} />
-    </DashboardProvider>
-  );
-}
-
-function Shell2({ activeNav, setActiveNav }: { activeNav: string; setActiveNav: (p: string) => void }) {
-  const { uploads } = useDashboard();
-
-  const groupedNav: Record<string, typeof navItems> = {};
-  for (const item of navItems) {
-    if (!groupedNav[item.section]) groupedNav[item.section] = [];
-    groupedNav[item.section].push(item);
-  }
-
-  const today = new Date().toLocaleDateString('en-US',{ weekday:'long', year:'numeric', month:'long', day:'numeric' });
-
-  return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">D</div>
-          <div className="sidebar-logo-text">Dent<span>Books</span></div>
-        </div>
-        <nav className="sidebar-nav">
-          {Object.entries(groupedNav).map(([sec,items]) => (
-            <div className="nav-section" key={sec}>
-              <div className="nav-section-label">{sectionLabels[sec]}</div>
-              {items.map(item => {
-                const badge = item.label === 'Upload Data'
-                  ? (uploads.length > 0 ? uploads.length.toString() : null)
-                  : item.badge;
-                return (
-                  <button
-                    key={item.label}
-                    className={`nav-item ${activeNav===item.label?'active':''}`}
-                    onClick={() => setActiveNav(item.label)}
+                </td>
+                <td><a href={`tel:${p.phone}`} className="phone-link">{p.phone}</a></td>
+                <td style={{fontSize:12,color:'var(--gray-600)',maxWidth:180}}>{p.procedures}</td>
+                <td>
+                  <span style={{
+                    fontWeight:800, fontSize:15,
+                    color: p.treatmentValue >= 2000 ? '#16a34a' : p.treatmentValue >= 1000 ? '#2563eb' : 'var(--gray-700)',
+                  }}>{fmt(p.treatmentValue)}</span>
+                </td>
+                <td style={{fontSize:13,color:'var(--gray-500)'}}>{p.planDate}</td>
+                <td>
+                  <span style={{fontWeight:700,color:urgencyColor(p.daysSincePlan,'tx')}}>{p.daysSincePlan}d</span>
+                </td>
+                <td style={{textAlign:'center',fontWeight:700,color:p.attempts>=3?'#dc2626':'var(--gray-600)'}}>{p.attempts}</td>
+                <td><StatusPill label={contactStatusLabel[p.status]} color={contactStatusColor[p.status]} /></td>
+                <td>
+                  <select
+                    className="status-select"
+                    value={p.status}
+                    onChange={e => update(p.id, {
+                      status: e.target.value as ContactStatus,
+                      attempts: p.attempts + 1,
+                      lastContact: 'Today',
+                    })}
                   >
-                    <span className="nav-icon">{item.icon}</span>
-                    {item.label}
-                    {badge && <span className="nav-badge">{badge}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-        <div className="sidebar-footer">
-          <div className="user-card">
-            <div className="user-avatar">DR</div>
-            <div>
-              <div className="user-name">Dr. Rachel Kim</div>
-              <div className="user-role">Practice Owner</div>
-            </div>
-          </div>
+                    <option value="new">New</option>
+                    <option value="called">Called</option>
+                    <option value="texted">Texted</option>
+                    <option value="left-vm">Left VM</option>
+                    <option value="no-answer">No Answer</option>
+                    <option value="scheduled">Scheduled ✓</option>
+                    <option value="declined">Declined</option>
+                  </select>
+                </td>
+                <td>
+                  <NoteField value={p.notes} onChange={v => update(p.id, { notes: v })} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ── AR tracker ───────────────────────────────────────────────────────────────
+
+function ArTracker() {
+  const [claims, setClaims] = useState(seedAr);
+  const [filter, setFilter] = useState<'all' | ClaimStatus>('all');
+
+  const update = (id: number, patch: Partial<ArClaim>) =>
+    setClaims(cs => cs.map(c => c.id === id ? { ...c, ...patch } : c));
+
+  const shown = filter === 'all' ? claims : claims.filter(c => c.status === filter);
+  const totalAr = claims
+    .filter(c => c.status !== 'resolved' && c.status !== 'write-off')
+    .reduce((s,c) => s + c.claimAmount, 0);
+
+  return (
+    <section className="tracker-section">
+      <div className="tracker-header">
+        <div>
+          <h2 className="tracker-title">💰 Accounts Receivable</h2>
+          <div className="tracker-sub">{fmt(totalAr)} total outstanding · tracker per patient claim</div>
         </div>
-      </aside>
+        <div className="tracker-pills">
+          {(['all','filed','pending','partial','needs-appeal','resolved'] as const).map(s => (
+            <button key={s} className={`filter-pill ${filter===s?'active':''}`} onClick={()=>setFilter(s)}>
+              {s==='all' ? `All (${claims.length})` : claimStatusLabel[s]}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="main">
-        <header className="header">
-          <div>
-            <div className="header-title">{activeNav}</div>
-            <div className="header-subtitle">{today}</div>
-          </div>
-          <div className="header-actions">
-            <div className="search-wrap">
-              <span>🔍</span>
-              <input type="text" placeholder="Search patients…" />
-            </div>
-            <button className="icon-btn" title="Notifications">🔔<span className="notif-dot"/></button>
-            <button className="icon-btn" title="Help">❓</button>
-            <button className="btn btn-primary">+ New Appointment</button>
-          </div>
-        </header>
+      <ProtocolBox steps={AR_PROTOCOL} />
 
-        {activeNav === 'Upload Data' ? <UploadPage /> : <Dashboard />}
+      <div className="tracker-table-wrap">
+        <table className="tracker-table">
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Insurance</th>
+              <th>Claim Total</th>
+              <th>Ins. Portion</th>
+              <th>Pt. Portion</th>
+              <th>Filed</th>
+              <th>Days Out</th>
+              <th>Last Action</th>
+              <th>Status</th>
+              <th>Update</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(c => (
+              <tr key={c.id} className={c.status === 'resolved' || c.status === 'write-off' ? 'row-done' : ''}>
+                <td>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <Avatar name={c.name} size={30} />
+                    <span style={{fontWeight:600,fontSize:13}}>{c.name}</span>
+                  </div>
+                </td>
+                <td style={{fontSize:12,color:'var(--gray-600)'}}>{c.insuranceName}</td>
+                <td style={{fontWeight:700,fontSize:13}}>{fmt(c.claimAmount)}</td>
+                <td style={{fontSize:13,color:'#2563eb'}}>{fmt(c.insurancePortion)}</td>
+                <td style={{fontSize:13,color:c.patientPortion>0?'#d97706':'var(--gray-400)'}}>{fmt(c.patientPortion)}</td>
+                <td style={{fontSize:12,color:'var(--gray-500)'}}>{c.dateFiled}</td>
+                <td>
+                  <span style={{fontWeight:800,fontSize:15,color:urgencyColor(c.daysOutstanding,'ar')}}>{c.daysOutstanding}d</span>
+                </td>
+                <td style={{fontSize:11,color:'var(--gray-500)',maxWidth:140}}>{c.lastAction}</td>
+                <td><StatusPill label={claimStatusLabel[c.status]} color={claimStatusColor[c.status]} /></td>
+                <td>
+                  <select
+                    className="status-select"
+                    value={c.status}
+                    onChange={e => update(c.id, { status: e.target.value as ClaimStatus })}
+                  >
+                    <option value="filed">Filed</option>
+                    <option value="pending">Pending</option>
+                    <option value="partial">Partial Paid</option>
+                    <option value="needs-appeal">Needs Appeal</option>
+                    <option value="resolved">Resolved ✓</option>
+                    <option value="write-off">Write-Off</option>
+                  </select>
+                </td>
+                <td>
+                  <NoteField value={c.notes} onChange={v => update(c.id, { notes: v, lastAction: v || c.lastAction })} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ── Summary bar ──────────────────────────────────────────────────────────────
+
+function SummaryBar() {
+  const recallUrgent = seedRecall.filter(p => p.daysOverdue >= 90 && p.status !== 'scheduled').length;
+  const txValue      = seedTx.filter(p => p.status !== 'scheduled' && p.status !== 'declined').reduce((s,p)=>s+p.treatmentValue,0);
+  const arUrgent     = seedAr.filter(c => c.daysOutstanding >= 60 && c.status !== 'resolved').length;
+
+  return (
+    <div className="summary-bar">
+      <div className="summary-item">
+        <div className="summary-num" style={{color:'#dc2626'}}>{recallUrgent}</div>
+        <div className="summary-label">Recall patients 90+ days overdue</div>
+      </div>
+      <div className="summary-divider"/>
+      <div className="summary-item">
+        <div className="summary-num" style={{color:'#16a34a'}}>{fmt(txValue)}</div>
+        <div className="summary-label">Unscheduled production value</div>
+      </div>
+      <div className="summary-divider"/>
+      <div className="summary-item">
+        <div className="summary-num" style={{color:'#d97706'}}>{arUrgent}</div>
+        <div className="summary-label">AR claims 60+ days outstanding</div>
       </div>
     </div>
   );
 }
+
+// ── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  return <AppInner />;
+  const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+  return (
+    <div className="app-root">
+      <header className="app-header">
+        <div className="app-logo">
+          <div className="logo-icon">D</div>
+          <span className="logo-text">Dent<span>Books</span></span>
+        </div>
+        <div className="app-header-center">{today}</div>
+        <div style={{width:140,textAlign:'right',fontSize:13,color:'var(--gray-400)'}}>Dr. Rachel Kim</div>
+      </header>
+
+      <SummaryBar />
+
+      <main className="app-main">
+        <RecallTracker />
+        <TxTracker />
+        <ArTracker />
+      </main>
+    </div>
+  );
 }
