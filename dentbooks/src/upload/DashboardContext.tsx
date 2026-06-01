@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
   OdAppointment, OdProduction, OdAgingRow, OdNewPatient, OdPayment,
   parseAppointments, parseProduction, parseAging, parseNewPatients, parsePayments,
@@ -21,17 +21,37 @@ interface DashboardData {
   payments: OdPayment[];
   uploads: UploadedReport[];
   ingest: (key: ReportKey, filename: string, csv: string) => void;
+  isElectron: boolean;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      pickFile: (key: ReportKey) => void;
+      onReport: (cb: (data: { key: ReportKey; filename: string; csv: string }) => void) => () => void;
+      onNavigate: (cb: (page: string) => void) => () => void;
+      isElectron: boolean;
+    };
+  }
 }
 
 const Ctx = createContext<DashboardData | null>(null);
 
-export function DashboardProvider({ children }: { children: ReactNode }) {
+export function DashboardProvider({
+  children,
+  onNavigate,
+}: {
+  children: ReactNode;
+  onNavigate?: (page: string) => void;
+}) {
   const [appointments, setAppointments] = useState<OdAppointment[]>([]);
   const [production, setProduction]     = useState<OdProduction[]>([]);
   const [aging, setAging]               = useState<OdAgingRow[]>([]);
   const [newPatients, setNewPatients]   = useState<OdNewPatient[]>([]);
   const [payments, setPayments]         = useState<OdPayment[]>([]);
   const [uploads, setUploads]           = useState<UploadedReport[]>([]);
+
+  const isElectron = !!window.electronAPI?.isElectron;
 
   const ingest = (key: ReportKey, filename: string, csv: string) => {
     let rowCount = 0;
@@ -48,8 +68,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ]);
   };
 
+  // Listen for files pushed from Electron main process (menu shortcuts)
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    const offReport   = window.electronAPI.onReport(({ key, filename, csv }) => ingest(key, filename, csv));
+    const offNavigate = window.electronAPI.onNavigate((page) => onNavigate?.(page));
+    return () => { offReport(); offNavigate(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <Ctx.Provider value={{ appointments, production, aging, newPatients, payments, uploads, ingest }}>
+    <Ctx.Provider value={{ appointments, production, aging, newPatients, payments, uploads, ingest, isElectron }}>
       {children}
     </Ctx.Provider>
   );

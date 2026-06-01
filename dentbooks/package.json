@@ -22,11 +22,44 @@
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
+  "main": "electron/main.js",
+  "homepage": "./",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron": "cross-env NODE_ENV=development electron .",
+    "electron:dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:pack": "npm run build && electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.dentbooks.app",
+    "productName": "DentBooks",
+    "copyright": "Copyright © 2026 DentBooks",
+    "mac": {
+      "category": "public.app-category.medical",
+      "icon": "public/logo512.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "public/logo192.png",
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"]
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "public",
+      "output": "dist"
+    }
   },
   "eslintConfig": {
     "extends": [
@@ -47,6 +80,11 @@
     ]
   },
   "devDependencies": {
-    "@types/papaparse": "^5.5.2"
+    "@types/papaparse": "^5.5.2",
+    "concurrently": "^10.0.1",
+    "cross-env": "^10.1.0",
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
+    "wait-on": "^9.0.10"
   }
 }

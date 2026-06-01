@@ -366,8 +366,16 @@ function Dashboard() {
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 
-function Shell() {
+function AppInner() {
   const [activeNav, setActiveNav] = useState('Dashboard');
+  return (
+    <DashboardProvider onNavigate={setActiveNav}>
+      <Shell2 activeNav={activeNav} setActiveNav={setActiveNav} />
+    </DashboardProvider>
+  );
+}
+
+function Shell2({ activeNav, setActiveNav }: { activeNav: string; setActiveNav: (p: string) => void }) {
   const { uploads } = useDashboard();
 
   const groupedNav: Record<string, typeof navItems> = {};
@@ -443,9 +451,5 @@ function Shell() {
 }
 
 export default function App() {
-  return (
-    <DashboardProvider>
-      <Shell />
-    </DashboardProvider>
-  );
+  return <AppInner />;
 }
