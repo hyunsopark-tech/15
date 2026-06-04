@@ -29,7 +29,7 @@ interface Props {
 
 const ACTIVITY_LOG_KEY = "dentbooks-activity-log";
 
-function logTaskCompletion(staffId: string, taskLabel: string, patientName: string) {
+function logTaskCompletion(staffId: string, taskLabel: string, patientName: string, workflow: string) {
   const today = new Date().toISOString().split("T")[0];
   const key = `${staffId}:${today}`;
   try {
@@ -39,7 +39,7 @@ function logTaskCompletion(staffId: string, taskLabel: string, patientName: stri
     const now = new Date();
     log.entries.push({
       id: `${Date.now()}`,
-      type: "task",
+      type: workflow, // "recall" | "treatment" | "claims" — drives color in tracker
       description: `✓ ${taskLabel} — ${patientName}`,
       timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
     });
@@ -132,7 +132,7 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
         if (item.id !== id) return item;
         const nowCompleted = !item.completed;
         if (nowCompleted && patient) {
-          logTaskCompletion(currentStaffId, item.label, patient.patientName);
+          logTaskCompletion(currentStaffId, item.label, patient.patientName, workflow);
         }
         return { ...item, completed: nowCompleted };
       })

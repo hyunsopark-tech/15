@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone, MessageSquare, Calendar,
   Clock, Plus, FileText, CheckCircle,
-  AlertCircle, Users, X,
+  AlertCircle, Users, X, RefreshCw, Stethoscope,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ActivityType = "call" | "text" | "appointment" | "task" | "note" | "escalation";
+type ActivityType = "call" | "text" | "appointment" | "task" | "note" | "escalation" | "recall" | "treatment" | "claims";
 
 interface ActivityEntry {
   id: string;
@@ -49,11 +49,16 @@ const ACTIVITY_TYPES: {
   badge: string;    // pill colors
   card: string;     // card left-border color
 }[] = [
-  { id: "call",        label: "Call",       icon: Phone,         badge: "bg-blue-100 text-blue-700",    card: "border-blue-400"   },
+  // Workflow types — auto-logged from checklist completions, color-coded by tab
+  { id: "recall",    label: "Recall",    icon: RefreshCw,   badge: "bg-blue-100 text-blue-700",     card: "border-blue-500"   },
+  { id: "treatment", label: "Treatment", icon: Stethoscope, badge: "bg-amber-100 text-amber-700",   card: "border-amber-500"  },
+  { id: "claims",    label: "Claims",    icon: AlertCircle, badge: "bg-red-100 text-red-700",       card: "border-red-500"    },
+  // Manual entry types
+  { id: "call",        label: "Call",       icon: Phone,         badge: "bg-sky-100 text-sky-700",      card: "border-sky-400"    },
   { id: "text",        label: "Text",       icon: MessageSquare, badge: "bg-purple-100 text-purple-700",card: "border-purple-400" },
   { id: "appointment", label: "Appt",       icon: Calendar,      badge: "bg-green-100 text-green-700",  card: "border-green-400"  },
   { id: "task",        label: "Task",       icon: CheckCircle,   badge: "bg-teal-100 text-teal-700",    card: "border-teal-400"   },
-  { id: "escalation",  label: "Escalation", icon: AlertCircle,   badge: "bg-red-100 text-red-700",      card: "border-red-400"    },
+  { id: "escalation",  label: "Escalation", icon: AlertCircle,   badge: "bg-rose-100 text-rose-700",    card: "border-rose-400"   },
   { id: "note",        label: "Note",       icon: FileText,      badge: "bg-slate-100 text-slate-600",  card: "border-slate-300"  },
 ];
 
