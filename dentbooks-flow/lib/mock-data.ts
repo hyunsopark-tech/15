@@ -393,15 +393,77 @@ export const treatmentChecklist: ChecklistItem[] = [
 ];
 
 export const claimsChecklist: ChecklistItem[] = [
-  { id: "cc1", label: "Open insurance aging report in Open Dental", completed: false },
-  { id: "cc2", label: "Confirm claim submission date & claim number", completed: false },
-  { id: "cc3", label: "Check payer portal for current status", completed: false },
-  { id: "cc4", label: "Review denial code / EOB reason", completed: false },
-  { id: "cc5", label: "Verify all attachments & narratives submitted", completed: false },
-  { id: "cc6", label: "Call insurance if no portal resolution", completed: false },
-  { id: "cc7", label: "Document reference number in commlog", completed: false },
-  { id: "cc8", label: "Correct errors and resubmit claim", completed: false },
-  { id: "cc9", label: "Set 14-day follow-up task", completed: false },
+  {
+    id: "cc1",
+    label: "Pull up the account in Open Dental",
+    completed: false,
+    steps: [
+      "Search patient by guarantor name → open their Account module",
+      "Locate the outstanding claim — note the date submitted, claim #, and payer",
+      "Check the claim status in Open Dental: Sent / Received / No response",
+      "Note the age bucket: 0–30 / 31–60 / 61–90 / 90+ days",
+      "Flag any claim over 90 days for office manager review",
+    ],
+  },
+  {
+    id: "cc2",
+    label: "Investigate why the claim is unpaid",
+    completed: false,
+    steps: [
+      "Log into the insurance portal (Availity, payer website, or clearinghouse)",
+      "Look up the claim by patient name, DOB, or claim number",
+      "If denied: read the denial code / EOB reason carefully",
+      "Common issues to check: missing/wrong NPI, incorrect patient DOB, missing attachments or X-rays, no narrative, bundling/downcoding, COB needed, duplicate on file",
+      "If no record found: claim may not have been sent — check clearinghouse report in Open Dental",
+    ],
+  },
+  {
+    id: "cc3",
+    label: "Call insurance if portal shows no clear resolution",
+    completed: false,
+    steps: [
+      "Call the provider services line on the back of the insurance card",
+      "Have ready: NPI, Tax ID, patient DOB, claim number, date of service",
+      "Ask specifically: 'What is the current status of this claim and what is needed to process it?'",
+      "Get a reference number for every call",
+    ],
+    script: `"Hi, this is [staff name] calling from Memorial Children's Dentistry. Our NPI is [NPI] and Tax ID is [Tax ID]. I'm calling about a claim for patient [patient name], date of birth [DOB], for dates of service [DOS]. The claim number is [#]. Can you tell me the current status of this claim and if anything is needed on our end to get it processed? … [If denied] What is the denial reason and what is the appeal process? … [Always] Can I get a reference number for this call?"`,
+  },
+  {
+    id: "cc4",
+    label: "Take corrective action based on findings",
+    completed: false,
+    steps: [
+      "Never sent / no record: resubmit the claim from Open Dental with all attachments",
+      "Denied – missing info: correct the error (fix NPI, DOB, add narrative/X-ray) and resubmit",
+      "Denied – bundling or downcoding: add a narrative explaining medical necessity and appeal",
+      "COB (coordination of benefits) needed: submit to primary first, then secondary with EOB",
+      "Pending with no ETA: note reference # and set a 2-week follow-up",
+      "Paid but underpaid: compare EOB to fee schedule — appeal if contractual adjustment is wrong",
+    ],
+  },
+  {
+    id: "cc5",
+    label: "Document everything in commlog",
+    completed: false,
+    steps: [
+      "Log what you found: portal status, denial code, or phone call outcome",
+      "Record the insurance reference number from any phone call",
+      "Note what action was taken: resubmitted / appealed / corrected / waiting",
+      "If claim was corrected and resubmitted, note the new submission date",
+    ],
+  },
+  {
+    id: "cc6",
+    label: "Set a 2-week follow-up task in Open Dental",
+    completed: false,
+    steps: [
+      "Create a Task in Open Dental assigned to yourself with a due date 14 days from today",
+      "Title: 'Follow up claim – [Payer] – [Patient Name]'",
+      "If claim is 90+ days old: loop in office manager and consider sending a formal appeal letter",
+      "If no resolution after second follow-up: escalate to office manager immediately",
+    ],
+  },
 ];
 
 // ─── STAFF ───────────────────────────────────────────────────────────────────

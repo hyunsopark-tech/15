@@ -219,6 +219,13 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
                 value={`$${patient.estimatedValue.toLocaleString()}`}
                 valueClass="text-amber-700 font-bold"
               />
+            ) : workflow === "claims" ? (
+              <InfoCard
+                icon={DollarSign}
+                label="Ins Balance"
+                value={`$${(patient.claimAmount ?? patient.estimatedValue).toLocaleString()}`}
+                valueClass="text-red-600 font-bold"
+              />
             ) : (
               <InfoCard
                 icon={Clock}

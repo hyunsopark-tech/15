@@ -96,6 +96,88 @@ function rowToPatient(row: Record<string, unknown>, index: number): Patient {
   };
 }
 
+// Parse Aging A/R Report — raw array rows (header: 1 mode), returns Patient[]
+function parseAgingReport(rawRows: unknown[][]): Patient[] {
+  const str = (v: unknown) => (v !== undefined && v !== null ? String(v).trim() : "");
+  const money = (v: unknown) => parseFloat(str(v).replace(/,/g, "")) || 0;
+
+  // Find the header row (contains "Guarantor")
+  const headerIdx = rawRows.findIndex((r) => str(r[0]).toLowerCase().includes("guarantor"));
+  if (headerIdx === -1) return [];
+
+  const dataRows = rawRows.slice(headerIdx + 1);
+  const patients: Patient[] = [];
+
+  dataRows.forEach((row, index) => {
+    const guarantor = str(row[0]);
+    if (!guarantor || guarantor.toLowerCase().includes("total")) return;
+
+    const days030  = money(row[1]);
+    const days3160 = money(row[2]);
+    const days6190 = money(row[3]);
+    const days90p  = money(row[4]);
+    const total    = money(row[5]);
+    const insEst   = money(row[7]);
+    const patBal   = money(row[8]);
+
+    // Skip rows where insurance owes nothing (pure patient balance — different workflow)
+    if (insEst <= 0 && total <= 0) return;
+    if (insEst <= 0) return; // only import rows with outstanding insurance balance
+
+    // Parse "Last, First" → "First Last"
+    const parts = guarantor.split(",");
+    const lname = parts[0].trim();
+    const fname = (parts[1] || "").trim();
+    const patientName = fname ? `${fname} ${lname}` : lname;
+    const guardianName = `${lname} Family`;
+
+    // Priority by age bucket
+    const priority =
+      days90p  > 0 ? "critical" as const :
+      days6190 > 0 ? "high"     as const :
+      days3160 > 0 ? "medium"   as const : "low" as const;
+
+    // Sort proxy — older = higher daysOverdue
+    const daysOverdue =
+      days90p  > 0 ? 91 :
+      days6190 > 0 ? 75 :
+      days3160 > 0 ? 45 : 15;
+
+    const ageLabel =
+      days90p  > 0 ? "90+ days" :
+      days6190 > 0 ? "61–90 days" :
+      days3160 > 0 ? "31–60 days" : "0–30 days";
+
+    patients.push({
+      id: `claims-import-${index}-${Date.now()}`,
+      patientName,
+      guardianName,
+      phone: "See Open Dental",
+      insurance: "See Open Dental",
+      dob: "",
+      lastVisit: "",
+      provider: "See Open Dental",
+      assignedStaff: "Lesley",
+      priority,
+      status: "new" as const,
+      daysOverdue,
+      estimatedValue: total,
+      attemptCount: 0,
+      nextStep: `Insurance balance $${insEst.toLocaleString()} outstanding — ${ageLabel} — investigate and resubmit`,
+      notes: `Total: $${total.toLocaleString()} | Ins Est: $${insEst.toLocaleString()} | Patient: $${patBal.toLocaleString()}`,
+      workflow: "claims" as const,
+      claimAmount: insEst,
+      claimNumber: "See Open Dental",
+      claimDate: "See Open Dental",
+      payerName: "See Open Dental",
+      denialReason: days90p > 0 ? "90+ days unpaid — investigate immediately" : undefined,
+    });
+  });
+
+  // Sort: oldest first within same priority (critical first overall)
+  return patients.sort((a, b) => b.daysOverdue - a.daysOverdue);
+}
+
 // Map a Treatment Finder Excel row to a Patient object
 function rowToTreatmentPatient(row: Record<string, unknown>, index: number): Patient {
   const str = (v: unknown) => (v !== undefined && v !== null && v !== "" ? String(v).trim() : "");
@@ -169,7 +251,7 @@ export default function DashboardShell() {
   const [activeView, setActiveView] = useState<"workflows" | "tracker" | "callcenter">("workflows");
   const [trackerMountKey, setTrackerMountKey] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importMode, setImportMode] = useState<"recall" | "treatment">("recall");
+  const [importMode, setImportMode] = useState<"recall" | "treatment" | "claims">("recall");
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importing, setImporting] = useState(false);
@@ -225,9 +307,12 @@ export default function DashboardShell() {
           defval: "",
         }) as Record<string, unknown>[];
 
-        const parsed = importMode === "treatment"
-          ? objRows.map((row, i) => rowToTreatmentPatient(row, i)).sort((a, b) => b.estimatedValue - a.estimatedValue)
-          : objRows.map((row, i) => rowToPatient(row, i));
+        const parsed =
+          importMode === "treatment"
+            ? objRows.map((row, i) => rowToTreatmentPatient(row, i)).sort((a, b) => b.estimatedValue - a.estimatedValue)
+            : importMode === "claims"
+            ? parseAgingReport(rawRows as unknown[][])
+            : objRows.map((row, i) => rowToPatient(row, i));
 
         setImportResult({
           success: true,
@@ -252,7 +337,7 @@ export default function DashboardShell() {
 
   const handleConfirmImport = () => {
     if (!importResult?.parsed.length) return;
-    const workflow = importMode === "treatment" ? "treatment" : "recall";
+    const workflow = importMode === "treatment" ? "treatment" : importMode === "claims" ? "claims" : "recall";
     setAllPatients((prev) => [
       ...prev.filter((p) => p.workflow !== workflow),
       ...importResult.parsed,
@@ -325,6 +410,13 @@ export default function DashboardShell() {
           <FileSpreadsheet className="w-3.5 h-3.5 text-amber-500" />
           Import Treatment List
         </button>
+        <button
+          onClick={() => { setImportMode("claims"); setShowImportModal(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-red-500" />
+          Import Aging Claims
+        </button>
 
         <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all">
           <Download className="w-3.5 h-3.5" />
@@ -390,7 +482,7 @@ export default function DashboardShell() {
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-slate-900">
-                    {importMode === "treatment" ? "Import Treatment Finder List" : "Import Overdue Recall List"}
+                    {importMode === "treatment" ? "Import Treatment Finder List" : importMode === "claims" ? "Import Aging A/R Report" : "Import Overdue Recall List"}
                   </h3>
                   <p className="text-xs text-slate-400">Excel export from Open Dental (.xlsx or .xls)</p>
                 </div>
@@ -409,6 +501,13 @@ export default function DashboardShell() {
                     <li>Set date range and filter as needed</li>
                     <li>Click Export → Save as Excel (.xls or .xlsx)</li>
                     <li>Upload that file here — patients sorted by highest treatment value</li>
+                  </ol>
+                ) : importMode === "claims" ? (
+                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                    <li>In Open Dental, go to <strong>Reports → Standard → Aging of A/R</strong></li>
+                    <li>Set the report date and click <strong>Run</strong></li>
+                    <li>Click <strong>Export</strong> → Save as Excel (.xls or .xlsx)</li>
+                    <li>Upload that file here — only rows with outstanding insurance balances are imported</li>
                   </ol>
                 ) : (
                   <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
@@ -471,7 +570,7 @@ export default function DashboardShell() {
                     </table>
                   </div>
                   <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                    ⚠️ Confirming will replace the current {importMode === "treatment" ? "Treatment" : "Recall"} queue with these {importResult.rowCount} patients{importMode === "treatment" ? ", sorted by highest treatment value" : ""}.
+                    ⚠️ Confirming will replace the current {importMode === "treatment" ? "Treatment Finder" : importMode === "claims" ? "Aging Claims" : "Recall"} queue with these {importResult.rowCount} patients{importMode === "treatment" ? ", sorted by highest treatment value" : importMode === "claims" ? ", sorted oldest-first" : ""}.
                   </p>
                 </div>
               )}
@@ -497,7 +596,7 @@ export default function DashboardShell() {
                   className="px-4 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-1.5"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
-                  Load {importResult.rowCount} Patients into {importMode === "treatment" ? "Treatment" : "Recall"} Queue
+                  Load {importResult.rowCount} Patients into {importMode === "treatment" ? "Treatment Finder" : importMode === "claims" ? "Aging Claims" : "Recall"} Queue
                 </button>
               )}
               {!importResult && (
