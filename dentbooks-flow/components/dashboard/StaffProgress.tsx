@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Phone, MessageSquare, Calendar, Send,
-  Clock, ChevronDown, ChevronUp, Plus,
-  FileText, CheckCircle, AlertCircle, Users,
+  Phone, MessageSquare, Calendar,
+  Clock, Plus, FileText, CheckCircle,
+  AlertCircle, Users, X,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -16,13 +16,12 @@ interface ActivityEntry {
   id: string;
   type: ActivityType;
   description: string;
-  timestamp: string; // ISO string
-  timeLabel: string; // e.g. "9:42 AM"
+  timeLabel: string;
 }
 
 interface StaffLog {
   staffId: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   entries: ActivityEntry[];
 }
 
@@ -43,268 +42,275 @@ function loadStaffConfig() {
   } catch { return DEFAULT_STAFF_CONFIG; }
 }
 
-const ACTIVITY_TYPES: { id: ActivityType; label: string; icon: React.ElementType; color: string; bg: string }[] = [
-  { id: "call",        label: "Call",        icon: Phone,         color: "text-blue-600",   bg: "bg-blue-50 border-blue-200"   },
-  { id: "text",        label: "Text",        icon: MessageSquare, color: "text-purple-600", bg: "bg-purple-50 border-purple-200" },
-  { id: "appointment", label: "Appt",        icon: Calendar,      color: "text-green-600",  bg: "bg-green-50 border-green-200"  },
-  { id: "task",        label: "Task",        icon: CheckCircle,   color: "text-teal-600",   bg: "bg-teal-50 border-teal-200"    },
-  { id: "escalation",  label: "Escalation",  icon: AlertCircle,   color: "text-red-600",    bg: "bg-red-50 border-red-200"      },
-  { id: "note",        label: "Note",        icon: FileText,      color: "text-slate-600",  bg: "bg-slate-50 border-slate-200"  },
+const ACTIVITY_TYPES: {
+  id: ActivityType;
+  label: string;
+  icon: React.ElementType;
+  badge: string;    // pill colors
+  card: string;     // card left-border color
+}[] = [
+  { id: "call",        label: "Call",       icon: Phone,         badge: "bg-blue-100 text-blue-700",    card: "border-blue-400"   },
+  { id: "text",        label: "Text",       icon: MessageSquare, badge: "bg-purple-100 text-purple-700",card: "border-purple-400" },
+  { id: "appointment", label: "Appt",       icon: Calendar,      badge: "bg-green-100 text-green-700",  card: "border-green-400"  },
+  { id: "task",        label: "Task",       icon: CheckCircle,   badge: "bg-teal-100 text-teal-700",    card: "border-teal-400"   },
+  { id: "escalation",  label: "Escalation", icon: AlertCircle,   badge: "bg-red-100 text-red-700",      card: "border-red-400"    },
+  { id: "note",        label: "Note",       icon: FileText,      badge: "bg-slate-100 text-slate-600",  card: "border-slate-300"  },
 ];
 
-const STORAGE_KEY = "dentbooks-activity-log";
+const STORAGE_KEY  = "dentbooks-activity-log";
 const TODAY = new Date().toISOString().split("T")[0];
-
-// ─── Storage ─────────────────────────────────────────────────────────────────
 
 function loadLogs(): Record<string, StaffLog> {
   if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
 }
-
-function saveLogs(data: Record<string, StaffLog>) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+function saveLogs(d: Record<string, StaffLog>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {}
 }
-
-function getLogKey(staffId: string) { return `${staffId}:${TODAY}`; }
-
-function defaultLog(staffId: string): StaffLog {
-  return { staffId, date: TODAY, entries: [] };
-}
+function logKey(id: string) { return `${id}:${TODAY}`; }
+function emptyLog(staffId: string): StaffLog { return { staffId, date: TODAY, entries: [] }; }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-interface Props {
-  currentStaffId: string;
-  currentStaffName: string;
-}
+interface Props { currentStaffId: string; currentStaffName: string; }
 
 export default function StaffProgress({ currentStaffId }: Props) {
   const [staffConfig, setStaffConfig] = useState(DEFAULT_STAFF_CONFIG);
-  const [logs, setLogs] = useState<Record<string, StaffLog>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(currentStaffId);
-  const [inputText, setInputText] = useState<Record<string, string>>({});
-  const [selectedType, setSelectedType] = useState<Record<string, ActivityType>>({});
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [logs, setLogs]               = useState<Record<string, StaffLog>>({});
+  const [addingTo, setAddingTo]       = useState<string | null>(null);
+  const [draftText, setDraftText]     = useState("");
+  const [draftType, setDraftType]     = useState<ActivityType>("call");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setStaffConfig(loadStaffConfig());
     setLogs(loadLogs());
   }, []);
 
-  const save = (updated: Record<string, StaffLog>) => {
+  useEffect(() => {
+    if (addingTo && inputRef.current) inputRef.current.focus();
+  }, [addingTo]);
+
+  const getLog = (id: string) => logs[logKey(id)] ?? emptyLog(id);
+
+  const openAdd = (staffId: string) => {
+    setAddingTo(staffId);
+    setDraftText("");
+    setDraftType("call");
+  };
+
+  const cancelAdd = () => { setAddingTo(null); setDraftText(""); };
+
+  const submitEntry = (staffId: string) => {
+    if (!draftText.trim()) return;
+    const now = new Date();
+    const entry: ActivityEntry = {
+      id: `${Date.now()}`,
+      type: draftType,
+      description: draftText.trim(),
+      timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    };
+    const log = getLog(staffId);
+    const updated = { ...logs, [logKey(staffId)]: { ...log, entries: [...log.entries, entry] } };
+    setLogs(updated);
+    saveLogs(updated);
+    setDraftText("");
+    setDraftType("call");
+    setAddingTo(null);
+  };
+
+  const removeEntry = (staffId: string, entryId: string) => {
+    const log = getLog(staffId);
+    const updated = { ...logs, [logKey(staffId)]: { ...log, entries: log.entries.filter((e) => e.id !== entryId) } };
     setLogs(updated);
     saveLogs(updated);
   };
 
-  const getLog = (staffId: string): StaffLog =>
-    logs[getLogKey(staffId)] ?? defaultLog(staffId);
-
-  const addEntry = (staffId: string) => {
-    const text = (inputText[staffId] ?? "").trim();
-    if (!text) return;
-    const type = selectedType[staffId] ?? "note";
-    const now = new Date();
-    const entry: ActivityEntry = {
-      id: `${Date.now()}`,
-      type,
-      description: text,
-      timestamp: now.toISOString(),
-      timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
-    };
-    const log = getLog(staffId);
-    const updated = {
-      ...logs,
-      [getLogKey(staffId)]: { ...log, entries: [entry, ...log.entries] },
-    };
-    save(updated);
-    setInputText((p) => ({ ...p, [staffId]: "" }));
-  };
-
-  const totalEntries = (staffId: string) => getLog(staffId).entries.length;
-
-  // Sort: current user first, then by entry count desc
-  const sortedStaff = [...staffConfig].sort((a, b) => {
-    if (a.id === currentStaffId) return -1;
-    if (b.id === currentStaffId) return 1;
-    return totalEntries(b.id) - totalEntries(a.id);
-  });
+  const totalToday = staffConfig.reduce((n, s) => n + getLog(s.id).entries.length, 0);
 
   return (
-    <div className="h-full overflow-y-auto p-6">
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            Daily Activity Log
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+    <div className="h-full flex flex-col bg-slate-100">
+      {/* ── Top bar ──────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-6 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-blue-600" />
+          <span className="font-bold text-slate-900 text-base">Daily Activity Board</span>
+          <span className="text-xs text-slate-400 ml-1">
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 bg-slate-100 rounded-full px-3 py-1.5">
-          <Clock className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-xs font-semibold text-slate-600">
-            {staffConfig.reduce((s, st) => s + totalEntries(st.id), 0)} entries today
           </span>
+        </div>
+        <div className="flex items-center gap-1.5 bg-blue-50 rounded-full px-3 py-1">
+          <Clock className="w-3.5 h-3.5 text-blue-500" />
+          <span className="text-xs font-semibold text-blue-700">{totalToday} entries today</span>
         </div>
       </div>
 
-      {/* ── Staff Cards ──────────────────────────────────────────── */}
-      <div className="space-y-3">
-        {sortedStaff.map((s) => {
-          const log = getLog(s.id);
-          const isMe = s.id === currentStaffId;
-          const isExpanded = expandedId === s.id;
-          const count = log.entries.length;
-          const typeText = selectedType[s.id] ?? "note";
-          const typeCfg = ACTIVITY_TYPES.find((t) => t.id === typeText)!;
+      {/* ── Board ────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-4 h-full p-5 min-w-max">
+          {staffConfig.map((s) => {
+            const log = getLog(s.id);
+            const isMe = s.id === currentStaffId;
+            const isAdding = addingTo === s.id;
 
-          return (
-            <motion.div
-              key={s.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
-            >
-              {/* Card header — click to expand */}
-              <button
-                className="w-full text-left px-5 py-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
-                onClick={() => setExpandedId(isExpanded ? null : s.id)}
+            return (
+              <div
+                key={s.id}
+                className="flex flex-col w-72 flex-shrink-0 rounded-2xl bg-slate-200/70"
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
-                    style={{ backgroundColor: s.color }}
-                  >
-                    {s.initials}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-900 text-sm">{s.name}</span>
-                      {isMe && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: s.color }}>You</span>}
+                {/* Column header */}
+                <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                      style={{ backgroundColor: s.color }}
+                    >
+                      {s.initials}
                     </div>
-                    <span className="text-xs text-slate-400">{s.role}</span>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-800 text-sm">{s.name}</span>
+                        {isMe && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: s.color }}>
+                            YOU
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-500">{s.role}</span>
+                    </div>
                   </div>
+                  <span
+                    className="text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm"
+                    style={{ backgroundColor: log.entries.length ? s.color : "#94a3b8" }}
+                  >
+                    {log.entries.length}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {/* Activity type breakdown */}
-                  <div className="flex items-center gap-1.5">
-                    {ACTIVITY_TYPES.filter((t) => log.entries.some((e) => e.type === t.id)).map((t) => {
+                {/* Cards list */}
+                <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-2">
+                  <AnimatePresence initial={false}>
+                    {log.entries.map((entry) => {
+                      const t = ACTIVITY_TYPES.find((a) => a.id === entry.type)!;
                       const Icon = t.icon;
-                      const n = log.entries.filter((e) => e.type === t.id).length;
                       return (
-                        <span key={t.id} className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${t.bg} ${t.color}`}>
-                          <Icon className="w-2.5 h-2.5" />{n}
-                        </span>
+                        <motion.div
+                          key={entry.id}
+                          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className={`bg-white rounded-xl shadow-sm border-l-4 px-3 py-2.5 group relative ${t.card}`}
+                        >
+                          {/* Delete button — only for own cards */}
+                          {isMe && (
+                            <button
+                              onClick={() => removeEntry(s.id, entry.id)}
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {/* Type badge */}
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${t.badge}`}>
+                              <Icon className="w-2.5 h-2.5" />{t.label}
+                            </span>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-sm text-slate-800 leading-snug pr-4">{entry.description}</p>
+
+                          {/* Timestamp */}
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <Clock className="w-2.5 h-2.5 text-slate-300" />
+                            <span className="text-[10px] text-slate-400">{entry.timeLabel}</span>
+                          </div>
+                        </motion.div>
                       );
                     })}
-                  </div>
-                  <span className="text-sm font-bold text-slate-700 min-w-[2rem] text-right">{count}</span>
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                </div>
-              </button>
+                  </AnimatePresence>
 
-              {/* Expanded content */}
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-
-                      {/* Input — only for own card */}
-                      {isMe && (
-                        <div className="mb-4">
-                          {/* Type selector */}
-                          <div className="flex gap-1.5 mb-2 flex-wrap">
-                            {ACTIVITY_TYPES.map((t) => {
-                              const Icon = t.icon;
-                              const active = (selectedType[s.id] ?? "note") === t.id;
-                              return (
-                                <button
-                                  key={t.id}
-                                  onClick={() => setSelectedType((p) => ({ ...p, [s.id]: t.id }))}
-                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-                                    active ? `${t.bg} ${t.color} border-current shadow-sm` : "bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300"
-                                  }`}
-                                >
-                                  <Icon className="w-3 h-3" />{t.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {/* Text input */}
-                          <div className="flex gap-2">
-                            <input
-                              ref={(el) => { inputRefs.current[s.id] = el; }}
-                              type="text"
-                              value={inputText[s.id] ?? ""}
-                              onChange={(e) => setInputText((p) => ({ ...p, [s.id]: e.target.value }))}
-                              onKeyDown={(e) => e.key === "Enter" && addEntry(s.id)}
-                              placeholder={`Log a ${typeCfg.label.toLowerCase()}... (e.g. "Called Smith family re: recall")`}
-                              className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                            />
-                            <button
-                              onClick={() => addEntry(s.id)}
-                              disabled={!(inputText[s.id] ?? "").trim()}
-                              className="px-3 py-2.5 text-white rounded-xl flex items-center gap-1 text-sm font-semibold transition-all disabled:opacity-40"
-                              style={{ backgroundColor: s.color }}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Activity feed */}
-                      {log.entries.length === 0 ? (
-                        <p className="text-sm text-slate-400 italic text-center py-6">No activity logged yet today</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {log.entries.map((entry, i) => {
-                            const t = ACTIVITY_TYPES.find((t) => t.id === entry.type)!;
+                  {/* Inline add form */}
+                  <AnimatePresence>
+                    {isAdding && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15 }}
+                        className="bg-white rounded-xl shadow-sm p-3"
+                      >
+                        {/* Type selector */}
+                        <div className="flex gap-1 mb-2 flex-wrap">
+                          {ACTIVITY_TYPES.map((t) => {
                             const Icon = t.icon;
                             return (
-                              <motion.div
-                                key={entry.id}
-                                initial={{ opacity: 0, x: -8 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.02 }}
-                                className={`flex items-start gap-3 p-3 rounded-xl border ${t.bg}`}
+                              <button
+                                key={t.id}
+                                onClick={() => setDraftType(t.id)}
+                                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all border ${
+                                  draftType === t.id
+                                    ? `${t.badge} border-current`
+                                    : "bg-slate-50 text-slate-400 border-slate-200"
+                                }`}
                               >
-                                <div className={`mt-0.5 flex-shrink-0 ${t.color}`}>
-                                  <Icon className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-slate-800 leading-snug">{entry.description}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className={`text-[10px] font-bold uppercase ${t.color}`}>{t.label}</span>
-                                    <span className="text-[10px] text-slate-400">{entry.timeLabel}</span>
-                                  </div>
-                                </div>
-                              </motion.div>
+                                <Icon className="w-2.5 h-2.5" />{t.label}
+                              </button>
                             );
                           })}
                         </div>
-                      )}
-                    </div>
-                  </motion.div>
+
+                        <textarea
+                          ref={inputRef}
+                          value={draftText}
+                          onChange={(e) => setDraftText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEntry(s.id); }
+                            if (e.key === "Escape") cancelAdd();
+                          }}
+                          placeholder="What did you do? (Enter to save)"
+                          rows={2}
+                          className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none mb-2"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => submitEntry(s.id)}
+                            disabled={!draftText.trim()}
+                            className="flex-1 py-1.5 text-xs font-bold text-white rounded-lg transition-all disabled:opacity-40"
+                            style={{ backgroundColor: s.color }}
+                          >
+                            Add Card
+                          </button>
+                          <button
+                            onClick={cancelAdd}
+                            className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Add card button — only for own column */}
+                {isMe && !isAdding && (
+                  <div className="px-3 pb-3 pt-1">
+                    <button
+                      onClick={() => openAdd(s.id)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-300/60 hover:text-slate-700 text-sm font-medium transition-all"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add a card
+                    </button>
+                  </div>
                 )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
