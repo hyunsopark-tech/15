@@ -4,19 +4,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone,
-  MessageSquare,
   CheckSquare,
   Square,
-  Save,
-  CheckCircle,
   AlertTriangle,
-  User,
-  Shield,
   Clock,
   DollarSign,
-  FileText,
   ChevronRight,
-  ChevronDown,
   Clipboard,
 } from "lucide-react";
 import { Patient, WorkflowType, ChecklistItem } from "@/lib/types";
@@ -116,9 +109,6 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
       ? treatmentChecklist
       : claimsChecklist
   );
-  const [note, setNote] = useState("");
-  const [noteSaved, setNoteSaved] = useState(false);
-  const [completed, setCompleted] = useState(false);
 
   const baseChecklist =
     workflow === "recall"
@@ -130,9 +120,6 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
   // Reset checklist and notes when patient or workflow changes
   useEffect(() => {
     setChecklist(baseChecklist.map((item) => ({ ...item, completed: false })));
-    setNote("");
-    setNoteSaved(false);
-    setCompleted(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id, workflow]);
 
@@ -150,11 +137,6 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
         return { ...item, completed: nowCompleted };
       })
     );
-  };
-
-  const handleSaveNote = () => {
-    setNoteSaved(true);
-    setTimeout(() => setNoteSaved(false), 2000);
   };
 
   if (!patient) {
@@ -347,33 +329,6 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
           </div>
         </div>
 
-        {/* ── ACTION BUTTONS ──────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-            Actions
-          </h3>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all">
-              <Phone className="w-3.5 h-3.5" />
-              Log Call
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-all">
-              <MessageSquare className="w-3.5 h-3.5" />
-              Send Text
-            </button>
-            <button
-              onClick={() => { setCompleted(true); if (patient) onMarkComplete?.(patient.id); }}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all border ${
-                completed
-                  ? "bg-green-50 text-green-700 border-green-300"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <CheckCircle className={`w-3.5 h-3.5 ${completed ? "text-green-600" : ""}`} />
-              {completed ? "Marked Complete" : "Mark Complete"}
-            </button>
-          </div>
-        </div>
       </motion.div>
     </AnimatePresence>
   );
