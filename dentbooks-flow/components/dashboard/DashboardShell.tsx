@@ -10,7 +10,6 @@ import {
 import * as XLSX from "xlsx";
 import WorkflowTabs from "./WorkflowTabs";
 import StaffProgress from "./StaffProgress";
-import DailyTracker from "./DailyTracker";
 import CallCenter from "./CallCenter";
 import LoginScreen from "./LoginScreen";
 import { mockDailyMetrics, mockPatients } from "@/lib/mock-data";
@@ -302,7 +301,7 @@ export default function DashboardShell() {
         >
           {activeView === "workflows" && <WorkflowTabs patients={allPatients} />}
           {activeView === "callcenter" && <CallCenter />}
-          {activeView === "tracker" && <DailyTracker metrics={mockDailyMetrics} />}
+          {activeView === "tracker" && <StaffProgress currentStaffId={currentStaffId!} currentStaffName={currentStaffName} />}
         </motion.div>
       </main>
 

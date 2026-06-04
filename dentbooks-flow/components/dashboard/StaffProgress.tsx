@@ -28,12 +28,20 @@ interface StaffLog {
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const STAFF_CONFIG = [
+const DEFAULT_STAFF_CONFIG = [
   { id: "vanessa", name: "Vanessa", role: "Office Manager", color: "#7C3AED", initials: "V" },
   { id: "lesley",  name: "Lesley",  role: "Front Desk",     color: "#2563EB", initials: "L" },
   { id: "jen",     name: "Jen",     role: "Front Desk",     color: "#0891B2", initials: "J" },
   { id: "idalia",  name: "Idalia",  role: "Front Desk",     color: "#16A34A", initials: "I" },
 ];
+
+function loadStaffConfig() {
+  if (typeof window === "undefined") return DEFAULT_STAFF_CONFIG;
+  try {
+    const raw = localStorage.getItem("dentbooks-staff-list");
+    return raw ? JSON.parse(raw) : DEFAULT_STAFF_CONFIG;
+  } catch { return DEFAULT_STAFF_CONFIG; }
+}
 
 const ACTIVITY_TYPES: { id: ActivityType; label: string; icon: React.ElementType; color: string; bg: string }[] = [
   { id: "call",        label: "Call",        icon: Phone,         color: "text-blue-600",   bg: "bg-blue-50 border-blue-200"   },
@@ -75,6 +83,7 @@ interface Props {
 }
 
 export default function StaffProgress({ currentStaffId }: Props) {
+  const [staffConfig, setStaffConfig] = useState(DEFAULT_STAFF_CONFIG);
   const [logs, setLogs] = useState<Record<string, StaffLog>>({});
   const [expandedId, setExpandedId] = useState<string | null>(currentStaffId);
   const [inputText, setInputText] = useState<Record<string, string>>({});
@@ -82,6 +91,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
+    setStaffConfig(loadStaffConfig());
     setLogs(loadLogs());
   }, []);
 
@@ -117,7 +127,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
   const totalEntries = (staffId: string) => getLog(staffId).entries.length;
 
   // Sort: current user first, then by entry count desc
-  const sortedStaff = [...STAFF_CONFIG].sort((a, b) => {
+  const sortedStaff = [...staffConfig].sort((a, b) => {
     if (a.id === currentStaffId) return -1;
     if (b.id === currentStaffId) return 1;
     return totalEntries(b.id) - totalEntries(a.id);
@@ -139,7 +149,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
         <div className="flex items-center gap-1.5 bg-slate-100 rounded-full px-3 py-1.5">
           <Clock className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-xs font-semibold text-slate-600">
-            {STAFF_CONFIG.reduce((s, st) => s + totalEntries(st.id), 0)} entries today
+            {staffConfig.reduce((s, st) => s + totalEntries(st.id), 0)} entries today
           </span>
         </div>
       </div>
