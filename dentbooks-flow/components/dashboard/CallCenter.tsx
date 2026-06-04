@@ -499,8 +499,8 @@ export default function CallCenter() {
                   className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${isEditing ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200"}`}
                 >
                   {/* Question row */}
-                  <button
-                    className="w-full text-left px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50 transition-colors"
+                  <div
+                    className="w-full text-left px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50 transition-colors cursor-pointer select-none"
                     onClick={() => { if (!isEditing) setExpandedId(isExpanded ? null : qa.id); }}
                   >
                     <div className="flex-1 min-w-0">
@@ -546,7 +546,7 @@ export default function CallCenter() {
                       )}
                       {!isEditing && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />)}
                     </div>
-                  </button>
+                  </div>
 
                   {/* Expanded / inline-edit content */}
                   <AnimatePresence>
