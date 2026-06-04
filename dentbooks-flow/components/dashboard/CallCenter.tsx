@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone, Search, ChevronDown, ChevronUp, Sparkles,
-  BookOpen, Clock, Shield, AlertTriangle, Star,
+  BookOpen, Clock, AlertTriangle, Star, Plus,
   MessageSquare, UserPlus, Stethoscope, DollarSign,
+  Pencil, Trash2, X, Check, Tag,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ interface QA {
   script: string;
   tips?: string;
   followUp?: string;
+  isCustom?: boolean;
 }
 
 // ─── Q&A Database ────────────────────────────────────────────────────────────
@@ -245,20 +247,58 @@ const CATEGORIES = [
   { id: "General",       label: "General",              icon: MessageSquare,color: "text-slate-700 bg-slate-100"   },
 ];
 
+// ─── Custom Q&A persistence ───────────────────────────────────────────────────
+
+const STORAGE_KEY = "dentbooks-custom-qa";
+
+function loadCustomQA(): QA[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveCustomQA(list: QA[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
+}
+
+// ─── Empty form ───────────────────────────────────────────────────────────────
+
+const BLANK_FORM = {
+  question: "",
+  category: "General",
+  keywordsRaw: "",
+  script: "",
+  tips: "",
+  followUp: "",
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CallCenter() {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [customQA, setCustomQA] = useState<QA[]>([]);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(BLANK_FORM);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCustomQA(loadCustomQA());
+  }, []);
+
+  const allQA = useMemo(() => [...QA_DATABASE, ...customQA], [customQA]);
 
   const results = useMemo(() => {
-    let list = QA_DATABASE;
-
+    let list = allQA;
     if (activeCategory !== "all") {
       list = list.filter((qa) => qa.category === activeCategory);
     }
-
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter(
@@ -269,9 +309,8 @@ export default function CallCenter() {
           qa.category.toLowerCase().includes(q)
       );
     }
-
     return list;
-  }, [query, activeCategory]);
+  }, [query, activeCategory, allQA]);
 
   const CAT_ICON_COLOR: Record<string, string> = {
     "Scheduling":             "text-blue-600",
@@ -282,206 +321,426 @@ export default function CallCenter() {
     "General":                "text-slate-500",
   };
 
+  // ── CRUD helpers ──────────────────────────────────────────────────────────
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(BLANK_FORM);
+    setShowModal(true);
+  };
+
+  const openEdit = (qa: QA) => {
+    setEditingId(qa.id);
+    setForm({
+      question: qa.question,
+      category: qa.category,
+      keywordsRaw: qa.keywords.join(", "),
+      script: qa.script,
+      tips: qa.tips ?? "",
+      followUp: qa.followUp ?? "",
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setForm(BLANK_FORM);
+  };
+
+  const saveForm = () => {
+    if (!form.question.trim() || !form.script.trim()) return;
+    const keywords = form.keywordsRaw
+      .split(",")
+      .map((k) => k.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (editingId) {
+      const updated = customQA.map((qa) =>
+        qa.id === editingId
+          ? { ...qa, question: form.question.trim(), category: form.category, keywords, script: form.script.trim(), tips: form.tips.trim() || undefined, followUp: form.followUp.trim() || undefined }
+          : qa
+      );
+      setCustomQA(updated);
+      saveCustomQA(updated);
+    } else {
+      const newQA: QA = {
+        id: `custom-${Date.now()}`,
+        isCustom: true,
+        question: form.question.trim(),
+        category: form.category,
+        keywords,
+        script: form.script.trim(),
+        tips: form.tips.trim() || undefined,
+        followUp: form.followUp.trim() || undefined,
+      };
+      const updated = [...customQA, newQA];
+      setCustomQA(updated);
+      saveCustomQA(updated);
+    }
+    closeModal();
+  };
+
+  const confirmDelete = (id: string) => setDeleteConfirmId(id);
+
+  const deleteQA = (id: string) => {
+    const updated = customQA.filter((qa) => qa.id !== id);
+    setCustomQA(updated);
+    saveCustomQA(updated);
+    setDeleteConfirmId(null);
+    if (expandedId === id) setExpandedId(null);
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex-shrink-0">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <Phone className="w-4.5 h-4.5 text-white" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shadow-sm">
+              <Phone className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">Call Center Scripts</h1>
+              <p className="text-xs text-slate-500">Memorial Children's Dentistry — phone guidance for every situation</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Call Center Assistant</h1>
-            <p className="text-xs text-slate-400">Memorial Children's Dentistry — Real-time phone support for staff</p>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-semibold text-green-700">Live</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
+              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-xs font-semibold text-blue-700">{allQA.length} scripts</span>
+            </div>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Script
+            </button>
           </div>
         </div>
 
-        {/* Search bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
+            placeholder="Search by keyword, question, or topic..."
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setExpandedId(null); }}
-            placeholder='Type what the parent is asking... e.g. "insurance", "cavity", "scared", "payment plan"'
-            className="w-full pl-10 pr-4 py-3 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
-            autoFocus
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
           />
           {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg leading-none"
-            >×</button>
-          )}
-        </div>
-
-        {/* Category filters */}
-        <div className="flex gap-2 flex-wrap">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const isActive = activeCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => { setActiveCategory(cat.id); setExpandedId(null); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                  isActive
-                    ? `${cat.color} border-current`
-                    : "text-slate-500 bg-white border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <Icon className="w-3 h-3" />
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Results ──────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-5">
-        {/* Result count */}
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-slate-400">
-            {results.length === 0
-              ? "No scripts found"
-              : `${results.length} script${results.length !== 1 ? "s" : ""} found`}
-            {query && <span className="ml-1">for <span className="font-semibold text-slate-600">"{query}"</span></span>}
-          </p>
-          {results.length > 0 && (
-            <button
-              onClick={() => setExpandedId(expandedId ? null : results[0].id)}
-              className="text-xs text-blue-600 hover:underline"
-            >
-              {expandedId ? "Collapse all" : "Expand first result"}
+            <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {results.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Sparkles className="w-10 h-10 mb-3 opacity-30" />
-            <p className="text-base font-medium">No scripts match that search</p>
-            <p className="text-sm mt-1">Try different keywords like "insurance", "pain", or "new patient"</p>
-          </div>
-        )}
-
-        <div className="space-y-3 max-w-3xl">
-          {results.map((qa, i) => {
-            const isExpanded = expandedId === qa.id;
-            const catColor = CAT_ICON_COLOR[qa.category] ?? "text-slate-500";
-            const isEmergency = qa.category === "Emergencies";
-
-            return (
-              <motion.div
-                key={qa.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${
-                  isEmergency ? "border-red-200" : "border-slate-200"
-                }`}
-              >
-                {/* Question row */}
-                <button
-                  onClick={() => setExpandedId(isExpanded ? null : qa.id)}
-                  className={`w-full text-left px-5 py-4 flex items-center gap-3 transition-all ${
-                    isExpanded ? "bg-slate-50" : "hover:bg-slate-50"
-                  }`}
-                >
-                  {/* Category badge */}
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex-shrink-0 ${
-                    isEmergency ? "bg-red-50 text-red-600 border border-red-200" : "bg-slate-100 text-slate-500"
-                  }`}>
-                    {qa.category}
-                  </span>
-
-                  <span className={`flex-1 font-semibold text-slate-900 text-sm text-left ${isEmergency ? "text-red-800" : ""}`}>
-                    {isEmergency && <AlertTriangle className="w-3.5 h-3.5 text-red-500 inline mr-1.5 mb-0.5" />}
-                    {qa.question}
-                  </span>
-
-                  {isExpanded
-                    ? <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />}
-                </button>
-
-                {/* Script content */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-5 pb-5 border-t border-slate-100">
-                        {/* Script */}
-                        <div className="mt-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Phone className="w-3.5 h-3.5 text-blue-500" />
-                            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                              Phone Script
-                            </span>
-                          </div>
-                          <div className={`rounded-xl p-4 text-sm leading-relaxed text-slate-800 font-medium whitespace-pre-wrap border ${
-                            isEmergency
-                              ? "bg-red-50 border-red-200"
-                              : "bg-blue-50 border-blue-100"
-                          }`}>
-                            {qa.script}
-                          </div>
-                        </div>
-
-                        {/* Tips */}
-                        {qa.tips && (
-                          <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <Star className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Pro Tip</p>
-                              <p className="text-xs text-amber-900">{qa.tips}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Follow up */}
-                        {qa.followUp && (
-                          <div className="mt-2 flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                            <BookOpen className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-0.5">After the Call</p>
-                              <p className="text-xs text-slate-600">{qa.followUp}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Keywords */}
-                        <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] text-slate-400 font-medium">Triggers:</span>
-                          {qa.keywords.slice(0, 6).map((k) => (
-                            <button
-                              key={k}
-                              onClick={() => setQuery(k)}
-                              className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-all"
-                            >
-                              {k}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
+        {/* Category pills */}
+        <div className="flex gap-2 flex-wrap">
+          {CATEGORIES.map(({ id, label, icon: Icon, color }) => (
+            <button
+              key={id}
+              onClick={() => setActiveCategory(id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                activeCategory === id
+                  ? `${color} border-current shadow-sm`
+                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* ── Results ──────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {results.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+            <Search className="w-10 h-10 mb-3 opacity-30" />
+            <p className="text-sm font-medium">No scripts found</p>
+            <p className="text-xs mt-1">Try different keywords or <button onClick={openAdd} className="text-blue-500 underline">add a custom script</button></p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-w-4xl mx-auto">
+            {/* Result count */}
+            <p className="text-xs text-slate-400 mb-4">
+              {results.length} script{results.length !== 1 ? "s" : ""} found
+              {query && <span> for "<strong>{query}</strong>"</span>}
+            </p>
+
+            {results.map((qa) => {
+              const isExpanded = expandedId === qa.id;
+              const catColor = CAT_ICON_COLOR[qa.category] ?? "text-slate-500";
+
+              return (
+                <motion.div
+                  key={qa.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                >
+                  {/* Question row */}
+                  <button
+                    className="w-full text-left px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50 transition-colors"
+                    onClick={() => setExpandedId(isExpanded ? null : qa.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${catColor}`}>
+                          {qa.category}
+                        </span>
+                        {qa.isCustom && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                            Custom
+                          </span>
+                        )}
+                        {qa.keywords.slice(0, 3).map((kw) => (
+                          <span key={kw} className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                            <Tag className="w-2.5 h-2.5" />{kw}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="font-semibold text-slate-800 text-sm">{qa.question}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {qa.isCustom && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(qa); }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); confirmDelete(qa.id); }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    </div>
+                  </button>
+
+                  {/* Expanded content */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 pb-5 border-t border-slate-100 pt-4 space-y-4">
+                          {/* Script */}
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Phone className="w-3.5 h-3.5 text-blue-500" />
+                              <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Phone Script</span>
+                            </div>
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                              <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{qa.script}</p>
+                            </div>
+                          </div>
+
+                          {/* Tips + Follow-up */}
+                          <div className="grid grid-cols-2 gap-3">
+                            {qa.tips && (
+                              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                                  <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Pro Tip</span>
+                                </div>
+                                <p className="text-xs text-amber-900 leading-relaxed">{qa.tips}</p>
+                              </div>
+                            )}
+                            {qa.followUp && (
+                              <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Check className="w-3.5 h-3.5 text-green-600" />
+                                  <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Follow Up</span>
+                                </div>
+                                <p className="text-xs text-green-900 leading-relaxed">{qa.followUp}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Add / Edit Modal ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={closeModal}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-base font-bold text-slate-900">
+                  {editingId ? "Edit Script" : "Add Custom Script"}
+                </h2>
+                <button onClick={closeModal} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Question */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Question / Situation <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={form.question}
+                    onChange={(e) => setForm({ ...form, question: e.target.value })}
+                    placeholder="e.g. Parent asking about fluoride treatments"
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Category</label>
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                  >
+                    {CATEGORIES.filter((c) => c.id !== "all").map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Keywords */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Keywords <span className="text-slate-400 font-normal">(comma-separated)</span></label>
+                  <input
+                    type="text"
+                    value={form.keywordsRaw}
+                    onChange={(e) => setForm({ ...form, keywordsRaw: e.target.value })}
+                    placeholder="e.g. fluoride, treatment, safe, toothpaste"
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                </div>
+
+                {/* Script */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone Script <span className="text-red-500">*</span></label>
+                  <textarea
+                    value={form.script}
+                    onChange={(e) => setForm({ ...form, script: e.target.value })}
+                    placeholder="Write the exact script staff should say on the phone..."
+                    rows={5}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                  />
+                </div>
+
+                {/* Tips */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pro Tip <span className="text-slate-400 font-normal">(optional)</span></label>
+                  <textarea
+                    value={form.tips}
+                    onChange={(e) => setForm({ ...form, tips: e.target.value })}
+                    placeholder="Helpful tips, tone reminders, or things to avoid..."
+                    rows={2}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                  />
+                </div>
+
+                {/* Follow Up */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Follow-Up Action <span className="text-slate-400 font-normal">(optional)</span></label>
+                  <textarea
+                    value={form.followUp}
+                    onChange={(e) => setForm({ ...form, followUp: e.target.value })}
+                    placeholder="What to do after the call ends..."
+                    rows={2}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                <button onClick={closeModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={saveForm}
+                  disabled={!form.question.trim() || !form.script.trim()}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {editingId ? "Save Changes" : "Add Script"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Delete Confirm ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="font-bold text-slate-900">Delete this script?</h3>
+              </div>
+              <p className="text-sm text-slate-500 mb-5">This custom script will be permanently removed and cannot be recovered.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteQA(deleteConfirmId)}
+                  className="flex-1 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
