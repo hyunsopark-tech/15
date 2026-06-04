@@ -229,15 +229,12 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
           {/* Info grid */}
           <div className="grid grid-cols-3 gap-3">
             <InfoCard icon={Phone} label="Phone" value={patient.phone} />
-            <InfoCard icon={Shield} label="Insurance" value={patient.insurance} />
-            <InfoCard icon={User} label="Provider" value={patient.provider} />
             <InfoCard
               icon={Clock}
               label="Days Overdue"
               value={`${patient.daysOverdue} days`}
               valueClass="text-red-600 font-bold"
             />
-            <InfoCard icon={User} label="Assigned To" value={patient.assignedStaff} />
           </div>
 
           {/* Workflow-specific details */}
