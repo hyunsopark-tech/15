@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   User,
   Shield,
-  Calendar,
   Clock,
   DollarSign,
   FileText,
@@ -139,7 +138,6 @@ export default function TaskDetail({ patient, workflow }: Props) {
               value={`${patient.daysOverdue} days`}
               valueClass="text-red-600 font-bold"
             />
-            <InfoCard icon={Calendar} label="Last Visit" value={new Date(patient.lastVisit).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />
             <InfoCard icon={User} label="Assigned To" value={patient.assignedStaff} />
           </div>
 
