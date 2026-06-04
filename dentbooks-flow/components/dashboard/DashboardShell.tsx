@@ -63,11 +63,13 @@ export default function DashboardShell() {
 
     setImporting(true);
     const reader = new FileReader();
+    const isLegacyXls = ext === ".xls";
 
-    reader.onload = (e) => {
+    const parseWorkbook = (raw: string | ArrayBuffer) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = isLegacyXls
+          ? XLSX.read(raw as string, { type: "binary" })
+          : XLSX.read(new Uint8Array(raw as ArrayBuffer), { type: "array" });
 
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
@@ -98,7 +100,13 @@ export default function DashboardShell() {
       }
     };
 
-    reader.readAsArrayBuffer(file);
+    reader.onload = (e) => parseWorkbook(e.target?.result as string | ArrayBuffer);
+
+    if (isLegacyXls) {
+      reader.readAsBinaryString(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
