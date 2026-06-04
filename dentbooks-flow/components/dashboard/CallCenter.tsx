@@ -6,7 +6,7 @@ import {
   Phone, Search, ChevronDown, ChevronUp, Sparkles,
   BookOpen, Clock, AlertTriangle, Star, Plus,
   MessageSquare, UserPlus, Stethoscope, DollarSign,
-  Pencil, Trash2, X, Check, Tag,
+  Pencil, Trash2, X, Check, Tag, RotateCcw,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -285,6 +285,15 @@ const BLANK_FORM = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// ─── Inline edit state ───────────────────────────────────────────────────────
+
+interface InlineEdit {
+  question: string;
+  script: string;
+  tips: string;
+  followUp: string;
+}
+
 export default function CallCenter() {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -292,10 +301,12 @@ export default function CallCenter() {
   const [customQA, setCustomQA] = useState<QA[]>([]);
   const [overrides, setOverrides] = useState<Record<string, Partial<QA>>>({});
 
-  // Modal state
+  // Inline editing
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const [inlineForm, setInlineForm] = useState<InlineEdit>({ question: "", script: "", tips: "", followUp: "" });
+
+  // Add modal state (only for adding new scripts now)
   const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingIsBuiltIn, setEditingIsBuiltIn] = useState(false);
   const [form, setForm] = useState(BLANK_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -339,56 +350,42 @@ export default function CallCenter() {
     "General":                "text-slate-500",
   };
 
-  // ── CRUD helpers ──────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-  const openAdd = () => {
-    setEditingId(null);
-    setForm(BLANK_FORM);
-    setShowModal(true);
-  };
+  const openAdd = () => { setForm(BLANK_FORM); setShowModal(true); };
+  const closeModal = () => setShowModal(false);
 
-  const openEdit = (qa: QA) => {
-    setEditingId(qa.id);
-    setEditingIsBuiltIn(!qa.isCustom);
-    setForm({
-      question: qa.question,
-      category: qa.category,
-      keywordsRaw: qa.keywords.join(", "),
-      script: qa.script,
-      tips: qa.tips ?? "",
-      followUp: qa.followUp ?? "",
-    });
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-    setEditingIsBuiltIn(false);
-    setForm(BLANK_FORM);
-  };
-
-  const saveForm = () => {
+  const saveNewScript = () => {
     if (!form.question.trim() || !form.script.trim()) return;
     const keywords = form.keywordsRaw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
-    const patch = { question: form.question.trim(), category: form.category, keywords, script: form.script.trim(), tips: form.tips.trim() || undefined, followUp: form.followUp.trim() || undefined };
+    const newQA: QA = { id: `custom-${Date.now()}`, isCustom: true, question: form.question.trim(), category: form.category, keywords, script: form.script.trim(), tips: form.tips.trim() || undefined, followUp: form.followUp.trim() || undefined };
+    const updated = [...customQA, newQA];
+    setCustomQA(updated);
+    saveCustomQA(updated);
+    closeModal();
+  };
 
-    if (editingId && editingIsBuiltIn) {
-      // Save as override for a built-in script
-      const updated = { ...overrides, [editingId]: patch };
-      setOverrides(updated);
-      saveOverrides(updated);
-    } else if (editingId) {
-      const updated = customQA.map((qa) => qa.id === editingId ? { ...qa, ...patch } : qa);
+  const startInlineEdit = (qa: QA) => {
+    setInlineEditId(qa.id);
+    setInlineForm({ question: qa.question, script: qa.script, tips: qa.tips ?? "", followUp: qa.followUp ?? "" });
+    if (expandedId !== qa.id) setExpandedId(qa.id);
+  };
+
+  const cancelInlineEdit = () => setInlineEditId(null);
+
+  const saveInlineEdit = (qa: QA) => {
+    if (!inlineForm.question.trim() || !inlineForm.script.trim()) return;
+    const patch = { question: inlineForm.question.trim(), script: inlineForm.script.trim(), tips: inlineForm.tips.trim() || undefined, followUp: inlineForm.followUp.trim() || undefined };
+    if (qa.isCustom) {
+      const updated = customQA.map((q) => q.id === qa.id ? { ...q, ...patch } : q);
       setCustomQA(updated);
       saveCustomQA(updated);
     } else {
-      const newQA: QA = { id: `custom-${Date.now()}`, isCustom: true, ...patch };
-      const updated = [...customQA, newQA];
-      setCustomQA(updated);
-      saveCustomQA(updated);
+      const updated = { ...overrides, [qa.id]: { ...overrides[qa.id], ...patch } };
+      setOverrides(updated);
+      saveOverrides(updated);
     }
-    closeModal();
+    setInlineEditId(null);
   };
 
   const resetBuiltIn = (id: string) => {
@@ -490,6 +487,7 @@ export default function CallCenter() {
 
             {results.map((qa) => {
               const isExpanded = expandedId === qa.id;
+              const isEditing = inlineEditId === qa.id;
               const catColor = CAT_ICON_COLOR[qa.category] ?? "text-slate-500";
 
               return (
@@ -498,28 +496,18 @@ export default function CallCenter() {
                   layout
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                  className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${isEditing ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200"}`}
                 >
                   {/* Question row */}
                   <button
                     className="w-full text-left px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50 transition-colors"
-                    onClick={() => setExpandedId(isExpanded ? null : qa.id)}
+                    onClick={() => { if (!isEditing) setExpandedId(isExpanded ? null : qa.id); }}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide ${catColor}`}>
-                          {qa.category}
-                        </span>
-                        {qa.isCustom && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-                            Custom
-                          </span>
-                        )}
-                        {qa.isEdited && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-                            Edited
-                          </span>
-                        )}
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${catColor}`}>{qa.category}</span>
+                        {qa.isCustom && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">Custom</span>}
+                        {qa.isEdited && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Edited</span>}
                         {qa.keywords.slice(0, 3).map((kw) => (
                           <span key={kw} className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                             <Tag className="w-2.5 h-2.5" />{kw}
@@ -529,23 +517,25 @@ export default function CallCenter() {
                       <p className="font-semibold text-slate-800 text-sm">{qa.question}</p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(qa); }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Edit script"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {qa.isEdited && (
+                      {!isEditing && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startInlineEdit(qa); }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="Edit this script"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {qa.isEdited && !isEditing && (
                         <button
                           onClick={(e) => { e.stopPropagation(); resetBuiltIn(qa.id); }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                           title="Reset to original"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {qa.isCustom && (
+                      {qa.isCustom && !isEditing && (
                         <button
                           onClick={(e) => { e.stopPropagation(); confirmDelete(qa.id); }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -554,13 +544,13 @@ export default function CallCenter() {
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                      {!isEditing && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />)}
                     </div>
                   </button>
 
-                  {/* Expanded content */}
+                  {/* Expanded / inline-edit content */}
                   <AnimatePresence>
-                    {isExpanded && (
+                    {(isExpanded || isEditing) && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
@@ -569,38 +559,105 @@ export default function CallCenter() {
                         className="overflow-hidden"
                       >
                         <div className="px-5 pb-5 border-t border-slate-100 pt-4 space-y-4">
-                          {/* Script */}
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Phone className="w-3.5 h-3.5 text-blue-500" />
-                              <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Phone Script</span>
-                            </div>
-                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                              <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{qa.script}</p>
-                            </div>
-                          </div>
-
-                          {/* Tips + Follow-up */}
-                          <div className="grid grid-cols-2 gap-3">
-                            {qa.tips && (
-                              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  <Star className="w-3.5 h-3.5 text-amber-500" />
-                                  <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Pro Tip</span>
-                                </div>
-                                <p className="text-xs text-amber-900 leading-relaxed">{qa.tips}</p>
+                          {isEditing ? (
+                            /* ── INLINE EDIT FORM ── */
+                            <>
+                              <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Question / Situation</label>
+                                <input
+                                  type="text"
+                                  value={inlineForm.question}
+                                  onChange={(e) => setInlineForm({ ...inlineForm, question: e.target.value })}
+                                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                                />
                               </div>
-                            )}
-                            {qa.followUp && (
-                              <div className="bg-green-50 border border-green-100 rounded-xl p-3">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  <Check className="w-3.5 h-3.5 text-green-600" />
-                                  <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Follow Up</span>
+                              <div>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <Phone className="w-3.5 h-3.5 text-blue-500" />
+                                  <label className="text-xs font-bold text-blue-700 uppercase tracking-wide">Phone Script</label>
                                 </div>
-                                <p className="text-xs text-green-900 leading-relaxed">{qa.followUp}</p>
+                                <textarea
+                                  value={inlineForm.script}
+                                  onChange={(e) => setInlineForm({ ...inlineForm, script: e.target.value })}
+                                  rows={6}
+                                  className="w-full px-3 py-2.5 text-sm border border-blue-200 bg-blue-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none leading-relaxed"
+                                />
                               </div>
-                            )}
-                          </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-1.5">
+                                    <Star className="w-3.5 h-3.5 text-amber-500" />
+                                    <label className="text-xs font-bold text-amber-700 uppercase tracking-wide">Pro Tip</label>
+                                  </div>
+                                  <textarea
+                                    value={inlineForm.tips}
+                                    onChange={(e) => setInlineForm({ ...inlineForm, tips: e.target.value })}
+                                    placeholder="Optional tip..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 text-xs border border-amber-200 bg-amber-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-1.5">
+                                    <Check className="w-3.5 h-3.5 text-green-600" />
+                                    <label className="text-xs font-bold text-green-700 uppercase tracking-wide">Follow Up</label>
+                                  </div>
+                                  <textarea
+                                    value={inlineForm.followUp}
+                                    onChange={(e) => setInlineForm({ ...inlineForm, followUp: e.target.value })}
+                                    placeholder="Optional follow-up..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 text-xs border border-green-200 bg-green-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/30 resize-none"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2 pt-1">
+                                <button onClick={cancelInlineEdit} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => saveInlineEdit(qa)}
+                                  disabled={!inlineForm.question.trim() || !inlineForm.script.trim()}
+                                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Save Changes
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            /* ── READ VIEW ── */
+                            <>
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Phone className="w-3.5 h-3.5 text-blue-500" />
+                                  <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Phone Script</span>
+                                </div>
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{qa.script}</p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                {qa.tips && (
+                                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <Star className="w-3.5 h-3.5 text-amber-500" />
+                                      <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Pro Tip</span>
+                                    </div>
+                                    <p className="text-xs text-amber-900 leading-relaxed">{qa.tips}</p>
+                                  </div>
+                                )}
+                                {qa.followUp && (
+                                  <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <Check className="w-3.5 h-3.5 text-green-600" />
+                                      <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Follow Up</span>
+                                    </div>
+                                    <p className="text-xs text-green-900 leading-relaxed">{qa.followUp}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -632,7 +689,7 @@ export default function CallCenter() {
             >
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-base font-bold text-slate-900">
-                  {editingId ? (editingIsBuiltIn ? "Edit Template Script" : "Edit Custom Script") : "Add Custom Script"}
+                  Add Custom Script
                 </h2>
                 <button onClick={closeModal} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
                   <X className="w-4 h-4" />
@@ -720,11 +777,11 @@ export default function CallCenter() {
                   Cancel
                 </button>
                 <button
-                  onClick={saveForm}
+                  onClick={saveNewScript}
                   disabled={!form.question.trim() || !form.script.trim()}
                   className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {editingId ? "Save Changes" : "Add Script"}
+                  Add Script
                 </button>
               </div>
             </motion.div>
