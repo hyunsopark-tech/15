@@ -11,6 +11,7 @@ import * as XLSX from "xlsx";
 import WorkflowTabs from "./WorkflowTabs";
 import StaffProgress from "./StaffProgress";
 import DailyTracker from "./DailyTracker";
+import CallCenter from "./CallCenter";
 import LoginScreen from "./LoginScreen";
 import { mockDailyMetrics, mockPatients } from "@/lib/mock-data";
 import { Patient } from "@/lib/types";
@@ -99,7 +100,7 @@ function rowToPatient(row: Record<string, unknown>, index: number): Patient {
 export default function DashboardShell() {
   const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
   const [currentStaffName, setCurrentStaffName] = useState<string>("");
-  const [activeView, setActiveView] = useState<"workflows" | "tracker">("workflows");
+  const [activeView, setActiveView] = useState<"workflows" | "tracker" | "callcenter">("workflows");
   const [showImportModal, setShowImportModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -222,6 +223,7 @@ export default function DashboardShell() {
         <nav className="flex items-center gap-1">
           {([
             { id: "workflows", label: "Revenue Recovery" },
+            { id: "callcenter", label: "📞 Call Center" },
             { id: "tracker", label: "Daily Tracker" },
           ] as const).map((v) => (
             <button
@@ -299,6 +301,7 @@ export default function DashboardShell() {
           className="h-full"
         >
           {activeView === "workflows" && <WorkflowTabs patients={allPatients} />}
+          {activeView === "callcenter" && <CallCenter />}
           {activeView === "tracker" && <DailyTracker metrics={mockDailyMetrics} />}
         </motion.div>
       </main>
