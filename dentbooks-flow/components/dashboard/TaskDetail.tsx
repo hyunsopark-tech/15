@@ -42,8 +42,6 @@ const PRIORITY_COLOR = {
 // ── ChecklistRow ──────────────────────────────────────────────────────────────
 
 function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () => void }) {
-  const [scriptOpen, setScriptOpen] = useState(false);
-
   return (
     <div className={`rounded-lg border transition-all ${item.completed ? "border-slate-100 bg-slate-50" : "border-transparent"}`}>
       <button onClick={onToggle} className="flex items-start gap-2 w-full text-left group px-1 py-1">
@@ -69,31 +67,16 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
         </ul>
       )}
 
-      {/* Script toggle */}
+      {/* Script — always visible when item is not completed */}
       {item.script && !item.completed && (
         <div className="ml-7 mb-2">
-          <button
-            onClick={() => setScriptOpen((o) => !o)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-          >
-            {scriptOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-            {scriptOpen ? "Hide script" : "Show voicemail script"}
-          </button>
-          <AnimatePresence>
-            {scriptOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                className="overflow-hidden"
-              >
-                <div className="mt-1.5 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 text-xs text-slate-700 leading-relaxed italic">
-                  {item.script}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 mb-1.5">
+            <ChevronRight className="w-3 h-3" />
+            Voicemail script
+          </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 text-xs text-slate-700 leading-relaxed italic">
+            {item.script}
+          </div>
         </div>
       )}
     </div>
@@ -292,9 +275,8 @@ export default function TaskDetail({ patient, siblings, workflow }: Props) {
           </div>
         </div>
 
-        {/* ── TWO COLUMNS: Checklist + Notes ─────────────────────── */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {/* Checklist */}
+        {/* ── CHECKLIST ───────────────────────────────────────────── */}
+        <div className="mb-4">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-slate-900">Workflow Checklist</h3>
@@ -318,45 +300,6 @@ export default function TaskDetail({ patient, siblings, workflow }: Props) {
               {checklist.map((item) => (
                 <ChecklistRow key={item.id} item={item} onToggle={() => toggleItem(item.id)} />
               ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col">
-            <h3 className="text-sm font-semibold text-slate-900 mb-1">Staff Notes</h3>
-            {patient.notes && (
-              <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mb-2 italic border border-slate-100">
-                Previous: "{patient.notes}"
-              </div>
-            )}
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Document your communication here — what happened, what was said, next steps..."
-              className="flex-1 resize-none text-xs border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-700 placeholder:text-slate-300 min-h-[120px]"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-slate-400">{note.length} chars</span>
-              <button
-                onClick={handleSaveNote}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  noteSaved
-                    ? "bg-green-50 text-green-700 border border-green-200"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
-              >
-                {noteSaved ? (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Saved
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-3.5 h-3.5" />
-                    Save Note
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -385,10 +328,6 @@ export default function TaskDetail({ patient, siblings, workflow }: Props) {
             >
               <CheckCircle className={`w-3.5 h-3.5 ${completed ? "text-green-600" : ""}`} />
               {completed ? "Marked Complete" : "Mark Complete"}
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition-all border border-red-200">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Escalate to Manager
             </button>
           </div>
         </div>
