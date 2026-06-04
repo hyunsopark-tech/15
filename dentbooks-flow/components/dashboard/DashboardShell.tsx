@@ -100,6 +100,7 @@ export default function DashboardShell() {
   const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
   const [currentStaffName, setCurrentStaffName] = useState<string>("");
   const [activeView, setActiveView] = useState<"workflows" | "tracker" | "callcenter">("workflows");
+  const [trackerMountKey, setTrackerMountKey] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -225,7 +226,7 @@ export default function DashboardShell() {
           ] as const).map((v) => (
             <button
               key={v.id}
-              onClick={() => setActiveView(v.id)}
+              onClick={() => { setActiveView(v.id); if (v.id === "tracker") setTrackerMountKey((k) => k + 1); }}
               className={`px-3.5 py-1.5 text-sm font-medium rounded-md transition-all ${
                 activeView === v.id
                   ? "bg-blue-50 text-blue-700"
@@ -293,7 +294,7 @@ export default function DashboardShell() {
         >
           {activeView === "workflows" && <WorkflowTabs patients={allPatients} currentStaffId={currentStaffId!} />}
           {activeView === "callcenter" && <CallCenter />}
-          {activeView === "tracker" && <StaffProgress currentStaffId={currentStaffId!} currentStaffName={currentStaffName} />}
+          {activeView === "tracker" && <StaffProgress key={trackerMountKey} currentStaffId={currentStaffId!} currentStaffName={currentStaffName} />}
         </motion.div>
       </main>
 

@@ -31,6 +31,7 @@ interface Props {
   siblings: Patient[];
   workflow: WorkflowType;
   currentStaffId: string;
+  onMarkComplete?: (patientId: string) => void;
 }
 
 const ACTIVITY_LOG_KEY = "dentbooks-activity-log";
@@ -107,7 +108,7 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function TaskDetail({ patient, siblings, workflow, currentStaffId }: Props) {
+export default function TaskDetail({ patient, siblings, workflow, currentStaffId, onMarkComplete }: Props) {
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     workflow === "recall"
       ? recallChecklist
@@ -343,7 +344,7 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
               Send Text
             </button>
             <button
-              onClick={() => setCompleted(true)}
+              onClick={() => { setCompleted(true); if (patient) onMarkComplete?.(patient.id); }}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all border ${
                 completed
                   ? "bg-green-50 text-green-700 border-green-300"

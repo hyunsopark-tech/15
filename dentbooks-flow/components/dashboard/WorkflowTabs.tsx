@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { RefreshCw, Stethoscope, FileText } from "lucide-react";
 import WorkQueue from "./WorkQueue";
@@ -33,9 +33,31 @@ function getFamilyKey(patient: Patient): string {
   return parts[parts.length - 1];
 }
 
+const COMPLETED_KEY = "dentbooks-completed-patients";
+
+function loadCompleted(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try { const r = localStorage.getItem(COMPLETED_KEY); return r ? new Set(JSON.parse(r)) : new Set(); } catch { return new Set(); }
+}
+function saveCompleted(s: Set<string>) {
+  try { localStorage.setItem(COMPLETED_KEY, JSON.stringify([...s])); } catch {}
+}
+
 export default function WorkflowTabs({ patients, currentStaffId }: Props) {
   const [activeTab, setActiveTab] = useState<WorkflowType>("recall");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => { setCompletedIds(loadCompleted()); }, []);
+
+  const handleMarkComplete = (patientId: string) => {
+    setCompletedIds((prev) => {
+      const next = new Set(prev);
+      next.add(patientId);
+      saveCompleted(next);
+      return next;
+    });
+  };
 
   const tabPatients = patients.filter((p) => p.workflow === activeTab);
 
@@ -83,6 +105,7 @@ export default function WorkflowTabs({ patients, currentStaffId }: Props) {
             selectedPatient={selectedPatient}
             onSelect={setSelectedPatient}
             workflow={activeTab}
+            completedIds={completedIds}
           />
         </div>
 
@@ -94,7 +117,7 @@ export default function WorkflowTabs({ patients, currentStaffId }: Props) {
           transition={{ duration: 0.15 }}
           className="flex-1 overflow-hidden bg-slate-50"
         >
-          <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} currentStaffId={currentStaffId} />
+          <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} currentStaffId={currentStaffId} onMarkComplete={handleMarkComplete} />
         </motion.div>
 
         {/* RIGHT: AI + SOP */}

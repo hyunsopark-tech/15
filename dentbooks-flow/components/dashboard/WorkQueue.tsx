@@ -74,9 +74,10 @@ interface Props {
   selectedPatient: Patient | null;
   onSelect: (p: Patient) => void;
   workflow: WorkflowType;
+  completedIds?: Set<string>;
 }
 
-export default function WorkQueue({ patients, selectedPatient, onSelect, workflow }: Props) {
+export default function WorkQueue({ patients, selectedPatient, onSelect, workflow, completedIds = new Set() }: Props) {
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
   const [groupBy, setGroupBy] = useState<"family" | "insurance">("family");
@@ -208,6 +209,7 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
             const isExpanded = expandedGroups.has(group.key);
             const hasMultiple = group.patients.length > 1;
             const hasSelected = group.patients.some((p) => p.id === selectedPatient?.id);
+            const allDone = group.patients.every((p) => completedIds.has(p.id));
             const pc = PRIORITY_CONFIG[group.topPriority];
             const ic = INS_COLOR[group.key] ?? INS_COLOR["Other"];
 
@@ -223,8 +225,8 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                 <button
                   onClick={() => hasMultiple ? toggleGroup(group.key) : onSelect(group.patients[0])}
                   className={`w-full text-left px-4 py-3 transition-all border-l-2 ${
-                    hasSelected ? "bg-blue-50 border-l-blue-500" : "hover:bg-slate-50 border-l-transparent"
-                  }`}
+                    allDone ? "opacity-40" : ""
+                  } ${hasSelected ? "bg-blue-50 border-l-blue-500" : "hover:bg-slate-50 border-l-transparent"}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -234,7 +236,8 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                           ? <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ic.dot}`} />
                           : <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pc.dot}`} />
                         }
-                        <span className="font-semibold text-slate-900 text-sm truncate">{group.label}</span>
+                        <span className={`font-semibold text-sm truncate ${allDone ? "line-through text-slate-400" : "text-slate-900"}`}>{group.label}</span>
+                        {allDone && <span className="text-[10px] font-bold text-green-600 flex-shrink-0">✓ Done</span>}
                         <span className="flex items-center gap-0.5 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
                           {groupBy === "family" ? <Users className="w-2.5 h-2.5" /> : <Shield className="w-2.5 h-2.5" />}
                           {group.patients.length}
@@ -286,6 +289,7 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                     >
                       {group.patients.map((patient) => {
                         const isSelected = selectedPatient?.id === patient.id;
+                        const isDone = completedIds.has(patient.id);
                         const ppc = PRIORITY_CONFIG[patient.priority];
 
                         return (
@@ -293,14 +297,17 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                             key={patient.id}
                             onClick={() => onSelect(patient)}
                             className={`w-full text-left pl-8 pr-4 py-2.5 border-b border-slate-100 last:border-0 transition-all border-l-2 ${
-                              isSelected ? "bg-blue-100 border-l-blue-500" : "hover:bg-slate-100 border-l-transparent"
-                            }`}
+                              isDone ? "opacity-40" : ""
+                            } ${isSelected ? "bg-blue-100 border-l-blue-500" : "hover:bg-slate-100 border-l-transparent"}`}
                           >
                             <div className="flex items-center gap-2">
                               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ppc.dot}`} />
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-800 truncate mb-0.5">
-                                  {patient.patientName}
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <span className={`text-sm font-medium truncate ${isDone ? "line-through text-slate-400" : "text-slate-800"}`}>
+                                    {patient.patientName}
+                                  </span>
+                                  {isDone && <span className="text-[10px] font-bold text-green-600 flex-shrink-0">✓ Done</span>}
                                 </div>
                                 {groupBy === "insurance" && (
                                   <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
