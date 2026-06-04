@@ -20,6 +20,7 @@ interface QA {
   tips?: string;
   followUp?: string;
   isCustom?: boolean;
+  isEdited?: boolean;
 }
 
 // ─── Q&A Database ────────────────────────────────────────────────────────────
@@ -247,20 +248,28 @@ const CATEGORIES = [
   { id: "General",       label: "General",              icon: MessageSquare,color: "text-slate-700 bg-slate-100"   },
 ];
 
-// ─── Custom Q&A persistence ───────────────────────────────────────────────────
+// ─── Persistence ─────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "dentbooks-custom-qa";
+const OVERRIDES_KEY = "dentbooks-qa-overrides";
 
 function loadCustomQA(): QA[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
 function saveCustomQA(list: QA[]) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
+}
+
+// Overrides: map of built-in id → partial QA fields that were changed
+function loadOverrides(): Record<string, Partial<QA>> {
+  if (typeof window === "undefined") return {};
+  try { const raw = localStorage.getItem(OVERRIDES_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+}
+
+function saveOverrides(map: Record<string, Partial<QA>>) {
+  try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map)); } catch {}
 }
 
 // ─── Empty form ───────────────────────────────────────────────────────────────
@@ -281,18 +290,27 @@ export default function CallCenter() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [customQA, setCustomQA] = useState<QA[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, Partial<QA>>>({});
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingIsBuiltIn, setEditingIsBuiltIn] = useState(false);
   const [form, setForm] = useState(BLANK_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     setCustomQA(loadCustomQA());
+    setOverrides(loadOverrides());
   }, []);
 
-  const allQA = useMemo(() => [...QA_DATABASE, ...customQA], [customQA]);
+  // Merge built-in QA with any saved overrides
+  const allQA = useMemo(() => {
+    const builtIn = QA_DATABASE.map((qa) =>
+      overrides[qa.id] ? { ...qa, ...overrides[qa.id], isEdited: true } : qa
+    );
+    return [...builtIn, ...customQA];
+  }, [customQA, overrides]);
 
   const results = useMemo(() => {
     let list = allQA;
@@ -331,6 +349,7 @@ export default function CallCenter() {
 
   const openEdit = (qa: QA) => {
     setEditingId(qa.id);
+    setEditingIsBuiltIn(!qa.isCustom);
     setForm({
       question: qa.question,
       category: qa.category,
@@ -345,40 +364,38 @@ export default function CallCenter() {
   const closeModal = () => {
     setShowModal(false);
     setEditingId(null);
+    setEditingIsBuiltIn(false);
     setForm(BLANK_FORM);
   };
 
   const saveForm = () => {
     if (!form.question.trim() || !form.script.trim()) return;
-    const keywords = form.keywordsRaw
-      .split(",")
-      .map((k) => k.trim().toLowerCase())
-      .filter(Boolean);
+    const keywords = form.keywordsRaw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
+    const patch = { question: form.question.trim(), category: form.category, keywords, script: form.script.trim(), tips: form.tips.trim() || undefined, followUp: form.followUp.trim() || undefined };
 
-    if (editingId) {
-      const updated = customQA.map((qa) =>
-        qa.id === editingId
-          ? { ...qa, question: form.question.trim(), category: form.category, keywords, script: form.script.trim(), tips: form.tips.trim() || undefined, followUp: form.followUp.trim() || undefined }
-          : qa
-      );
+    if (editingId && editingIsBuiltIn) {
+      // Save as override for a built-in script
+      const updated = { ...overrides, [editingId]: patch };
+      setOverrides(updated);
+      saveOverrides(updated);
+    } else if (editingId) {
+      const updated = customQA.map((qa) => qa.id === editingId ? { ...qa, ...patch } : qa);
       setCustomQA(updated);
       saveCustomQA(updated);
     } else {
-      const newQA: QA = {
-        id: `custom-${Date.now()}`,
-        isCustom: true,
-        question: form.question.trim(),
-        category: form.category,
-        keywords,
-        script: form.script.trim(),
-        tips: form.tips.trim() || undefined,
-        followUp: form.followUp.trim() || undefined,
-      };
+      const newQA: QA = { id: `custom-${Date.now()}`, isCustom: true, ...patch };
       const updated = [...customQA, newQA];
       setCustomQA(updated);
       saveCustomQA(updated);
     }
     closeModal();
+  };
+
+  const resetBuiltIn = (id: string) => {
+    const updated = { ...overrides };
+    delete updated[id];
+    setOverrides(updated);
+    saveOverrides(updated);
   };
 
   const confirmDelete = (id: string) => setDeleteConfirmId(id);
@@ -498,6 +515,11 @@ export default function CallCenter() {
                             Custom
                           </span>
                         )}
+                        {qa.isEdited && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                            Edited
+                          </span>
+                        )}
                         {qa.keywords.slice(0, 3).map((kw) => (
                           <span key={kw} className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                             <Tag className="w-2.5 h-2.5" />{kw}
@@ -506,22 +528,31 @@ export default function CallCenter() {
                       </div>
                       <p className="font-semibold text-slate-800 text-sm">{qa.question}</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEdit(qa); }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Edit script"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      {qa.isEdited && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); resetBuiltIn(qa.id); }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                          title="Reset to original"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {qa.isCustom && (
-                        <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEdit(qa); }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); confirmDelete(qa.id); }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); confirmDelete(qa.id); }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Delete script"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                     </div>
@@ -601,7 +632,7 @@ export default function CallCenter() {
             >
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-base font-bold text-slate-900">
-                  {editingId ? "Edit Script" : "Add Custom Script"}
+                  {editingId ? (editingIsBuiltIn ? "Edit Template Script" : "Edit Custom Script") : "Add Custom Script"}
                 </h2>
                 <button onClick={closeModal} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
                   <X className="w-4 h-4" />
