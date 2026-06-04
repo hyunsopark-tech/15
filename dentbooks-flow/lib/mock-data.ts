@@ -343,15 +343,53 @@ export const recallChecklist: ChecklistItem[] = [
 ];
 
 export const treatmentChecklist: ChecklistItem[] = [
-  { id: "tc1", label: "Confirm active unscheduled treatment plan in Open Dental", completed: false },
-  { id: "tc2", label: "Review provider notes & urgency level", completed: false },
-  { id: "tc3", label: "Check insurance estimate & pre-auth status", completed: false },
-  { id: "tc4", label: "Call guardian — use warm, non-fear-based language", completed: false },
-  { id: "tc5", label: "Explain clinical recommendation & urgency", completed: false },
-  { id: "tc6", label: "Review payment options (insurance, Care Credit)", completed: false },
-  { id: "tc7", label: "Offer available appointment blocks", completed: false },
-  { id: "tc8", label: "Document parent barrier in commlog", completed: false },
-  { id: "tc9", label: "Set follow-up date & task", completed: false },
+  {
+    id: "tc1",
+    label: "Review chart before calling",
+    completed: false,
+    steps: [
+      "Open patient in Open Dental — confirm treatment plan is still unscheduled",
+      "Note treatment plan total and what procedures are included",
+      "Check insurance remaining benefit (amountRemainingInd) and carrier",
+      "Flag as VIP if annual max ≥ $2,000 and plan is > $1,000 — handle with extra care",
+      "Check commlog for any prior contact attempts or parent concerns",
+    ],
+  },
+  {
+    id: "tc2",
+    label: "Call guardian",
+    completed: false,
+    steps: [
+      "Lead with care, not sales — the doctor recommends this for a reason",
+      "Acknowledge the parent's time and reassure, never pressure",
+      "For VIP families: use first name, reference their specific plan warmly",
+      "Mention insurance coverage first to ease financial anxiety",
+    ],
+    script: `"Hi [parent's name], this is [staff's name] calling from Memorial Children's Dentistry. Dr. [provider] wanted us to reach out because [patient's name] has a treatment plan on file that we'd love to help get scheduled. We know life gets busy, so we just wanted to check in and see how [patient's name] is doing and if there's anything we can help with to make it easier to come in. We have some great appointment times available, and your insurance [carrier name] should cover a good portion of the visit. No pressure at all — we just care about [patient's name]'s smile and want to make sure they're comfortable and healthy!"`,
+  },
+  {
+    id: "tc3",
+    label: "If no answer, leave a warm voicemail",
+    completed: false,
+    script: `"Hi [parent's name], this is [staff's name] from Memorial Children's Dentistry. We're reaching out because [patient's name] has a treatment plan on file and we just wanted to make sure they're doing well. We'd love to connect and help get that scheduled at your convenience — no rush at all. Feel free to give us a call at 281-730-8080 whenever works for you. We look forward to hearing from you. Have a wonderful day!"`,
+  },
+  {
+    id: "tc4",
+    label: "If still no response after 2 days, send a text",
+    completed: false,
+    script: `Hi! It's Memorial Children's Dentistry reaching out about [patient's name]'s treatment plan. We just want to make sure they're doing well and that we can help get their care scheduled at a time that works for your family. No rush — just give us a call at 281-730-8080 or reply here whenever you're ready. We're always happy to help! 😊`,
+  },
+  {
+    id: "tc5",
+    label: "Document in commlog",
+    completed: false,
+    steps: [
+      "Log outcome: reached / left voicemail / sent text / no response",
+      "Note any parent concerns (cost, scheduling, anxiety, etc.)",
+      "If scheduled: note date and time",
+      "If declined: note reason and set a 30-day follow-up task",
+    ],
+  },
 ];
 
 export const claimsChecklist: ChecklistItem[] = [

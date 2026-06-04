@@ -40,7 +40,7 @@ function loadCompleted(): Set<string> {
   try { const r = localStorage.getItem(COMPLETED_KEY); return r ? new Set(JSON.parse(r)) : new Set(); } catch { return new Set(); }
 }
 function saveCompleted(s: Set<string>) {
-  try { localStorage.setItem(COMPLETED_KEY, JSON.stringify([...s])); } catch {}
+  try { localStorage.setItem(COMPLETED_KEY, JSON.stringify(Array.from(s))); } catch {}
 }
 
 export default function WorkflowTabs({ patients, currentStaffId }: Props) {

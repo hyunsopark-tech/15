@@ -96,12 +96,80 @@ function rowToPatient(row: Record<string, unknown>, index: number): Patient {
   };
 }
 
+// Map a Treatment Finder Excel row to a Patient object
+function rowToTreatmentPatient(row: Record<string, unknown>, index: number): Patient {
+  const str = (v: unknown) => (v !== undefined && v !== null && v !== "" ? String(v).trim() : "");
+  const money = (v: unknown) => parseFloat(str(v).replace(/,/g, "")) || 0;
+
+  const lname = str(row["LName"]);
+  const fname = str(row["FName"]);
+  const patientName = fname && lname ? `${fname} ${lname}` : lname || fname || `Patient ${index + 1}`;
+  const guardianName = lname ? `${lname} Family` : "See Open Dental";
+
+  // Phone is embedded in contactMethod: "Hm:(832) 266-7645" or "Hm:"
+  const contactMethod = str(row["contactMethod"]);
+  const phoneMatch = contactMethod.match(/\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{4}/);
+  const phone = phoneMatch ? phoneMatch[0].trim() : "—";
+
+  const treatmentValue = money(row["treatmentPlan"]);
+  const annualMaxInd = money(row["annualMaxInd"]);
+  const amountRemainingInd = money(row["amountRemainingInd"]);
+  const amountPendingInd = money(row["amountPendingInd"]);
+  const carrierName = str(row["carrierName"]);
+
+  const isMedicaid = /mcna|dentaquest|tmhp|uhc medicaid|medicaid|chip/i.test(carrierName);
+  const isVip = !isMedicaid && (annualMaxInd >= 2000 || treatmentValue >= 1500);
+
+  const priority =
+    treatmentValue >= 3000 ? "critical" as const
+    : treatmentValue >= 1000 ? "high" as const
+    : treatmentValue >= 300 ? "medium" as const
+    : "low" as const;
+
+  // Use treatmentValue as daysOverdue so WorkQueue sorts higher-value patients first within priority
+  const sortProxy = Math.round(treatmentValue);
+
+  const insuranceEstimate = amountRemainingInd > 0
+    ? Math.min(amountRemainingInd, treatmentValue)
+    : 0;
+
+  const preAuthStatus = amountPendingInd > 0 ? "pending" : "not-required";
+
+  const nextStep = isVip
+    ? `⭐ VIP — ${carrierName} (${amountRemainingInd > 0 ? `$${amountRemainingInd.toLocaleString()} benefit remaining` : "verify benefits"}) — call first`
+    : `Treatment plan: $${treatmentValue.toLocaleString()} — ${carrierName || "See Open Dental"}`;
+
+  return {
+    id: `tx-import-${index}-${Date.now()}`,
+    patientName,
+    guardianName,
+    phone,
+    insurance: carrierName || "See Open Dental",
+    dob: "",
+    lastVisit: "",
+    provider: "See Open Dental",
+    assignedStaff: "Lesley",
+    priority,
+    status: "new" as const,
+    daysOverdue: sortProxy,
+    estimatedValue: treatmentValue,
+    insuranceEstimate,
+    preAuthStatus,
+    attemptCount: 0,
+    nextStep,
+    notes: `${str(row["address"])}, ${str(row["City"])}, ${str(row["State"])} ${str(row["Zip"])}`.trim(),
+    workflow: "treatment" as const,
+    treatmentPlan: `$${treatmentValue.toLocaleString()} — ${str(row["address"]).split(",")[0] || "See plan"}`,
+  };
+}
+
 export default function DashboardShell() {
   const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
   const [currentStaffName, setCurrentStaffName] = useState<string>("");
   const [activeView, setActiveView] = useState<"workflows" | "tracker" | "callcenter">("workflows");
   const [trackerMountKey, setTrackerMountKey] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [importMode, setImportMode] = useState<"recall" | "treatment">("recall");
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importing, setImporting] = useState(false);
@@ -157,7 +225,9 @@ export default function DashboardShell() {
           defval: "",
         }) as Record<string, unknown>[];
 
-        const parsed = objRows.map((row, i) => rowToPatient(row, i));
+        const parsed = importMode === "treatment"
+          ? objRows.map((row, i) => rowToTreatmentPatient(row, i)).sort((a, b) => b.estimatedValue - a.estimatedValue)
+          : objRows.map((row, i) => rowToPatient(row, i));
 
         setImportResult({
           success: true,
@@ -182,9 +252,9 @@ export default function DashboardShell() {
 
   const handleConfirmImport = () => {
     if (!importResult?.parsed.length) return;
-    // Replace existing recall patients with imported ones, keep treatment + claims
+    const workflow = importMode === "treatment" ? "treatment" : "recall";
     setAllPatients((prev) => [
-      ...prev.filter((p) => p.workflow !== "recall"),
+      ...prev.filter((p) => p.workflow !== workflow),
       ...importResult.parsed,
     ]);
     handleCloseImport();
@@ -242,11 +312,18 @@ export default function DashboardShell() {
 
 
         <button
-          onClick={() => setShowImportModal(true)}
+          onClick={() => { setImportMode("recall"); setShowImportModal(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
           Import Recall List
+        </button>
+        <button
+          onClick={() => { setImportMode("treatment"); setShowImportModal(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-amber-500" />
+          Import Treatment List
         </button>
 
         <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all">
@@ -312,7 +389,9 @@ export default function DashboardShell() {
                   <FileSpreadsheet className="w-4 h-4 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900">Import Overdue Recall List</h3>
+                  <h3 className="text-base font-semibold text-slate-900">
+                    {importMode === "treatment" ? "Import Treatment Finder List" : "Import Overdue Recall List"}
+                  </h3>
                   <p className="text-xs text-slate-400">Excel export from Open Dental (.xlsx or .xls)</p>
                 </div>
               </div>
@@ -324,12 +403,21 @@ export default function DashboardShell() {
             <div className="p-5">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-xs font-semibold text-blue-800 mb-1">How to export from Open Dental:</p>
-                <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
-                  <li>Reports → Standard → Patient Lists → Recall List</li>
-                  <li>Filter by Status: Past Due</li>
-                  <li>Click Export → Save as Excel (.xlsx or .xls)</li>
-                  <li>Upload that file here</li>
-                </ol>
+                {importMode === "treatment" ? (
+                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                    <li>Reports → Standard → Patient Lists → Treatment Finder</li>
+                    <li>Set date range and filter as needed</li>
+                    <li>Click Export → Save as Excel (.xls or .xlsx)</li>
+                    <li>Upload that file here — patients sorted by highest treatment value</li>
+                  </ol>
+                ) : (
+                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                    <li>Reports → Standard → Patient Lists → Recall List</li>
+                    <li>Filter by Status: Past Due</li>
+                    <li>Click Export → Save as Excel (.xlsx or .xls)</li>
+                    <li>Upload that file here</li>
+                  </ol>
+                )}
               </div>
 
               {!importResult && (
@@ -382,7 +470,7 @@ export default function DashboardShell() {
                     </table>
                   </div>
                   <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                    ⚠️ Confirming will replace the current Recall queue with these {importResult.rowCount} patients.
+                    ⚠️ Confirming will replace the current {importMode === "treatment" ? "Treatment" : "Recall"} queue with these {importResult.rowCount} patients{importMode === "treatment" ? ", sorted by highest treatment value" : ""}.
                   </p>
                 </div>
               )}
@@ -408,7 +496,7 @@ export default function DashboardShell() {
                   className="px-4 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-1.5"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
-                  Load {importResult.rowCount} Patients into Queue
+                  Load {importResult.rowCount} Patients into {importMode === "treatment" ? "Treatment" : "Recall"} Queue
                 </button>
               )}
               {!importResult && (

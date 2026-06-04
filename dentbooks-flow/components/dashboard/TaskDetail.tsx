@@ -230,15 +230,33 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
           {/* Info grid */}
           <div className="grid grid-cols-3 gap-3">
             <InfoCard icon={Phone} label="Phone" value={patient.phone} />
-            <InfoCard
-              icon={Clock}
-              label="Days Overdue"
-              value={`${patient.daysOverdue} days`}
-              valueClass="text-red-600 font-bold"
-            />
+            {workflow === "treatment" ? (
+              <InfoCard
+                icon={DollarSign}
+                label="Tx Value"
+                value={`$${patient.estimatedValue.toLocaleString()}`}
+                valueClass="text-amber-700 font-bold"
+              />
+            ) : (
+              <InfoCard
+                icon={Clock}
+                label="Days Overdue"
+                value={`${patient.daysOverdue} days`}
+                valueClass="text-red-600 font-bold"
+              />
+            )}
           </div>
 
           {/* Workflow-specific details */}
+          {workflow === "treatment" && patient.estimatedValue >= 1500 && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg">
+              <span className="text-base">⭐</span>
+              <div>
+                <span className="text-xs font-bold text-yellow-800">VIP Patient</span>
+                <span className="text-xs text-yellow-700 ml-1.5">— high-value treatment plan. Prioritize a warm, personal call. Focus on care, not sales.</span>
+              </div>
+            </div>
+          )}
           {workflow === "treatment" && (
             <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <p className="text-xs font-semibold text-amber-800 mb-1">Treatment Plan</p>
