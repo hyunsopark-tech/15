@@ -99,7 +99,7 @@ function rowToPatient(row: Record<string, unknown>, index: number): Patient {
 export default function DashboardShell() {
   const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
   const [currentStaffName, setCurrentStaffName] = useState<string>("");
-  const [activeView, setActiveView] = useState<"workflows" | "staff" | "tracker">("workflows");
+  const [activeView, setActiveView] = useState<"workflows" | "tracker">("workflows");
   const [showImportModal, setShowImportModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -222,7 +222,6 @@ export default function DashboardShell() {
         <nav className="flex items-center gap-1">
           {([
             { id: "workflows", label: "Revenue Recovery" },
-            { id: "staff", label: "My Progress" },
             { id: "tracker", label: "Daily Tracker" },
           ] as const).map((v) => (
             <button
@@ -300,12 +299,6 @@ export default function DashboardShell() {
           className="h-full"
         >
           {activeView === "workflows" && <WorkflowTabs patients={allPatients} />}
-          {activeView === "staff" && (
-            <StaffProgress
-              currentStaffId={currentStaffId}
-              currentStaffName={currentStaffName}
-            />
-          )}
           {activeView === "tracker" && <DailyTracker metrics={mockDailyMetrics} />}
         </motion.div>
       </main>
