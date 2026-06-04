@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import WorkflowTabs from "./WorkflowTabs";
-import StaffScorecard from "./StaffScorecard";
+import StaffProgress from "./StaffProgress";
 import DailyTracker from "./DailyTracker";
-import { mockDailyMetrics, mockPatients, mockStaff } from "@/lib/mock-data";
+import LoginScreen from "./LoginScreen";
+import { mockDailyMetrics, mockPatients } from "@/lib/mock-data";
 import { Patient } from "@/lib/types";
 
 interface ImportResult {
@@ -96,6 +97,8 @@ function rowToPatient(row: Record<string, unknown>, index: number): Patient {
 }
 
 export default function DashboardShell() {
+  const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
+  const [currentStaffName, setCurrentStaffName] = useState<string>("");
   const [activeView, setActiveView] = useState<"workflows" | "staff" | "tracker">("workflows");
   const [showImportModal, setShowImportModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -105,6 +108,18 @@ export default function DashboardShell() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const totalRevenue = mockDailyMetrics.revenueRecovered;
+
+  // Show login screen if not logged in
+  if (!currentStaffId) {
+    return (
+      <LoginScreen
+        onLogin={(id, name) => {
+          setCurrentStaffId(id);
+          setCurrentStaffName(name);
+        }}
+      />
+    );
+  }
 
   const handleFile = (file: File) => {
     if (!file) return;
@@ -207,7 +222,7 @@ export default function DashboardShell() {
         <nav className="flex items-center gap-1">
           {([
             { id: "workflows", label: "Revenue Recovery" },
-            { id: "staff", label: "Staff Scorecard" },
+            { id: "staff", label: "My Progress" },
             { id: "tracker", label: "Daily Tracker" },
           ] as const).map((v) => (
             <button
@@ -254,9 +269,24 @@ export default function DashboardShell() {
           <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all">
             <Settings className="w-4 h-4" />
           </button>
-          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center ml-1">
-            <span className="text-white text-xs font-bold">VR</span>
-          </div>
+          <button
+            onClick={() => { setCurrentStaffId(null); setCurrentStaffName(""); }}
+            className="flex items-center gap-2 ml-1 px-2 py-1 rounded-lg hover:bg-slate-100 transition-all"
+            title="Switch user"
+          >
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
+              style={{
+                backgroundColor:
+                  currentStaffId === "vanessa" ? "#7C3AED"
+                  : currentStaffId === "lesley" ? "#2563EB"
+                  : currentStaffId === "jen" ? "#0891B2"
+                  : "#16A34A"
+              }}
+            >
+              {currentStaffName.charAt(0)}
+            </div>
+            <span className="text-xs font-medium text-slate-600">{currentStaffName}</span>
+          </button>
         </div>
       </header>
 
@@ -270,7 +300,12 @@ export default function DashboardShell() {
           className="h-full"
         >
           {activeView === "workflows" && <WorkflowTabs patients={allPatients} />}
-          {activeView === "staff" && <StaffScorecard staff={mockStaff} />}
+          {activeView === "staff" && (
+            <StaffProgress
+              currentStaffId={currentStaffId}
+              currentStaffName={currentStaffName}
+            />
+          )}
           {activeView === "tracker" && <DailyTracker metrics={mockDailyMetrics} />}
         </motion.div>
       </main>
