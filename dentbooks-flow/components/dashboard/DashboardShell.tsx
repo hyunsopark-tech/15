@@ -412,9 +412,10 @@ export default function DashboardShell() {
                   </ol>
                 ) : (
                   <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
-                    <li>Reports → Standard → Patient Lists → Recall List</li>
-                    <li>Filter by Status: Past Due</li>
-                    <li>Click Export → Save as Excel (.xlsx or .xls)</li>
+                    <li>In Open Dental, go to the <strong>Appt</strong> tab → <strong>Lists</strong> → <strong>Recall</strong></li>
+                    <li>Set the date to <strong>6 months before today</strong> (e.g. today is 6/4/2026 → enter 12/4/2025)</li>
+                    <li>Click <strong>Refresh</strong></li>
+                    <li>Click <strong>Export</strong> → Save as Excel (.xlsx or .xls)</li>
                     <li>Upload that file here</li>
                   </ol>
                 )}
