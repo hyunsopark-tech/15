@@ -46,6 +46,8 @@ export interface ChecklistItem {
   id: string;
   label: string;
   completed: boolean;
+  steps?: string[];   // sub-steps shown as bullets under the label
+  script?: string;    // voicemail / phone script shown expandable
 }
 
 export interface StaffMember {

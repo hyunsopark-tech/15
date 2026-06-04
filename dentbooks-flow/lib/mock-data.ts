@@ -323,9 +323,16 @@ export const mockPatients: Patient[] = [
 // ─── CHECKLISTS ──────────────────────────────────────────────────────────────
 
 export const recallChecklist: ChecklistItem[] = [
-  { id: "rc1", label: "Confirm patient is overdue in Open Dental", completed: false },
-  { id: "rc2", label: "Review last visit date & treatment history", completed: false },
-  { id: "rc3", label: "Call parent / guardian", completed: false },
+  {
+    id: "rc1",
+    label: "Call patient",
+    completed: false,
+    steps: [
+      "Confirm patient is active and overdue in Open Dental",
+      "Review treatment plan and any outstanding care",
+    ],
+    script: `"Hi Mrs. [parent last name], this is [staff's name] from Memorial Children's Dentistry. We hope [patient's name] has been doing well! We noticed we haven't seen them in a while and wanted to check in. We'd love to help get her back on track with preventive care whenever you're ready. Please give us a call at 281-730-8080. We look forward to hearing from you."`,
+  },
   { id: "rc4", label: "If no answer, send text message", completed: false },
   { id: "rc5", label: "Offer 2 specific appointment time slots", completed: false },
   { id: "rc6", label: "Document communication in commlog", completed: false },

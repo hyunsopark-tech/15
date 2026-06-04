@@ -16,6 +16,7 @@ import {
   DollarSign,
   FileText,
   ChevronRight,
+  ChevronDown,
   Clipboard,
 } from "lucide-react";
 import { Patient, WorkflowType, ChecklistItem } from "@/lib/types";
@@ -27,6 +28,7 @@ import {
 
 interface Props {
   patient: Patient | null;
+  siblings: Patient[];
   workflow: WorkflowType;
 }
 
@@ -37,7 +39,70 @@ const PRIORITY_COLOR = {
   low: "text-slate-600 bg-slate-50 border-slate-200",
 };
 
-export default function TaskDetail({ patient, workflow }: Props) {
+// ── ChecklistRow ──────────────────────────────────────────────────────────────
+
+function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () => void }) {
+  const [scriptOpen, setScriptOpen] = useState(false);
+
+  return (
+    <div className={`rounded-lg border transition-all ${item.completed ? "border-slate-100 bg-slate-50" : "border-transparent"}`}>
+      <button onClick={onToggle} className="flex items-start gap-2 w-full text-left group px-1 py-1">
+        {item.completed ? (
+          <CheckSquare className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+        ) : (
+          <Square className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-slate-500" />
+        )}
+        <span className={`text-xs leading-relaxed font-medium ${item.completed ? "line-through text-slate-400" : "text-slate-700"}`}>
+          {item.label}
+        </span>
+      </button>
+
+      {/* Sub-steps */}
+      {item.steps && !item.completed && (
+        <ul className="ml-7 mb-1 space-y-0.5">
+          {item.steps.map((step, i) => (
+            <li key={i} className="text-[11px] text-slate-500 flex items-start gap-1.5">
+              <span className="mt-0.5 w-1 h-1 rounded-full bg-slate-300 flex-shrink-0" />
+              {step}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Script toggle */}
+      {item.script && !item.completed && (
+        <div className="ml-7 mb-2">
+          <button
+            onClick={() => setScriptOpen((o) => !o)}
+            className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            {scriptOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {scriptOpen ? "Hide script" : "Show voicemail script"}
+          </button>
+          <AnimatePresence>
+            {scriptOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-1.5 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 text-xs text-slate-700 leading-relaxed italic">
+                  {item.script}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function TaskDetail({ patient, siblings, workflow }: Props) {
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     workflow === "recall"
       ? recallChecklist
@@ -105,6 +170,30 @@ export default function TaskDetail({ patient, workflow }: Props) {
         transition={{ duration: 0.2 }}
         className="h-full overflow-y-auto p-5"
       >
+        {/* ── SIBLING TABS ──────────────────────────────────────────── */}
+        {siblings.length > 1 && (
+          <div className="flex gap-1.5 mb-3 flex-wrap">
+            {siblings.map((sib) => {
+              const isActive = sib.id === patient.id;
+              return (
+                <a
+                  key={sib.id}
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-default ${
+                    isActive
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-slate-500 border-slate-200"
+                  }`}
+                >
+                  {sib.patientName}
+                </a>
+              );
+            })}
+            <span className="text-[10px] text-slate-400 self-center ml-1">— click a sibling in the queue to switch</span>
+          </div>
+        )}
+
         {/* ── PATIENT HEADER ──────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-4">
           <div className="flex items-start justify-between mb-4">
@@ -227,26 +316,7 @@ export default function TaskDetail({ patient, workflow }: Props) {
             {/* Items */}
             <div className="space-y-2">
               {checklist.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => toggleItem(item.id)}
-                  className="flex items-start gap-2 w-full text-left group"
-                >
-                  {item.completed ? (
-                    <CheckSquare className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-slate-500" />
-                  )}
-                  <span
-                    className={`text-xs leading-relaxed ${
-                      item.completed
-                        ? "line-through text-slate-400"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </button>
+                <ChecklistRow key={item.id} item={item} onToggle={() => toggleItem(item.id)} />
               ))}
             </div>
           </div>

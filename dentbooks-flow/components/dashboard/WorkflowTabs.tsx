@@ -25,11 +25,23 @@ interface Props {
   patients: Patient[];
 }
 
+function getFamilyKey(patient: Patient): string {
+  if (patient.guardianName.endsWith(" Family"))
+    return patient.guardianName.replace(" Family", "").trim();
+  const parts = patient.patientName.trim().split(" ");
+  return parts[parts.length - 1];
+}
+
 export default function WorkflowTabs({ patients }: Props) {
   const [activeTab, setActiveTab] = useState<WorkflowType>("recall");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   const tabPatients = patients.filter((p) => p.workflow === activeTab);
+
+  // Siblings: all patients in the same tab with the same family key
+  const selectedGroup: Patient[] = selectedPatient
+    ? tabPatients.filter((p) => getFamilyKey(p) === getFamilyKey(selectedPatient))
+    : [];
 
   return (
     <div className="flex flex-col h-full">
@@ -81,7 +93,7 @@ export default function WorkflowTabs({ patients }: Props) {
           transition={{ duration: 0.15 }}
           className="flex-1 overflow-hidden bg-slate-50"
         >
-          <TaskDetail patient={selectedPatient} workflow={activeTab} />
+          <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} />
         </motion.div>
 
         {/* RIGHT: AI + SOP */}
