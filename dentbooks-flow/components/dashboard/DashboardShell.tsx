@@ -299,7 +299,7 @@ export default function DashboardShell() {
           transition={{ duration: 0.2 }}
           className="h-full"
         >
-          {activeView === "workflows" && <WorkflowTabs patients={allPatients} />}
+          {activeView === "workflows" && <WorkflowTabs patients={allPatients} currentStaffId={currentStaffId!} />}
           {activeView === "callcenter" && <CallCenter />}
           {activeView === "tracker" && <StaffProgress currentStaffId={currentStaffId!} currentStaffName={currentStaffName} />}
         </motion.div>

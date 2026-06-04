@@ -30,6 +30,28 @@ interface Props {
   patient: Patient | null;
   siblings: Patient[];
   workflow: WorkflowType;
+  currentStaffId: string;
+}
+
+const ACTIVITY_LOG_KEY = "dentbooks-activity-log";
+
+function logTaskCompletion(staffId: string, taskLabel: string, patientName: string) {
+  const today = new Date().toISOString().split("T")[0];
+  const key = `${staffId}:${today}`;
+  try {
+    const raw = localStorage.getItem(ACTIVITY_LOG_KEY);
+    const logs = raw ? JSON.parse(raw) : {};
+    const log = logs[key] ?? { staffId, date: today, entries: [] };
+    const now = new Date();
+    log.entries.push({
+      id: `${Date.now()}`,
+      type: "task",
+      description: `✓ ${taskLabel} — ${patientName}`,
+      timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    });
+    logs[key] = log;
+    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(logs));
+  } catch {}
 }
 
 const PRIORITY_COLOR = {
@@ -85,7 +107,7 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function TaskDetail({ patient, siblings, workflow }: Props) {
+export default function TaskDetail({ patient, siblings, workflow, currentStaffId }: Props) {
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     workflow === "recall"
       ? recallChecklist
@@ -118,9 +140,14 @@ export default function TaskDetail({ patient, siblings, workflow }: Props) {
 
   const toggleItem = (id: string) => {
     setChecklist((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, completed: !item.completed } : item
-      )
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const nowCompleted = !item.completed;
+        if (nowCompleted && patient) {
+          logTaskCompletion(currentStaffId, item.label, patient.patientName);
+        }
+        return { ...item, completed: nowCompleted };
+      })
     );
   };
 

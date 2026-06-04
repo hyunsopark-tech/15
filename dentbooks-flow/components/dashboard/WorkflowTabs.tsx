@@ -23,6 +23,7 @@ const COLOR_MAP = {
 
 interface Props {
   patients: Patient[];
+  currentStaffId: string;
 }
 
 function getFamilyKey(patient: Patient): string {
@@ -32,7 +33,7 @@ function getFamilyKey(patient: Patient): string {
   return parts[parts.length - 1];
 }
 
-export default function WorkflowTabs({ patients }: Props) {
+export default function WorkflowTabs({ patients, currentStaffId }: Props) {
   const [activeTab, setActiveTab] = useState<WorkflowType>("recall");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
@@ -93,7 +94,7 @@ export default function WorkflowTabs({ patients }: Props) {
           transition={{ duration: 0.15 }}
           className="flex-1 overflow-hidden bg-slate-50"
         >
-          <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} />
+          <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} currentStaffId={currentStaffId} />
         </motion.div>
 
         {/* RIGHT: AI + SOP */}
