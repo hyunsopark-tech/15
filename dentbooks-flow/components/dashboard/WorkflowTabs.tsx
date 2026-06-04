@@ -11,7 +11,7 @@ import { Patient, WorkflowType } from "@/lib/types";
 
 const TABS: { id: WorkflowType; label: string; icon: React.ElementType; color: string }[] = [
   { id: "recall",    label: "Overdue Recall",    icon: RefreshCw,   color: "blue"  },
-  { id: "treatment", label: "Planned Treatment",  icon: Stethoscope, color: "amber" },
+  { id: "treatment", label: "Treatment Finder",    icon: Stethoscope, color: "amber" },
   { id: "claims",    label: "Aging Claims",       icon: FileText,    color: "red"   },
 ];
 

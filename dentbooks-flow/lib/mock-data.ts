@@ -493,7 +493,7 @@ export const mockSOPs: SOPDocument[] = [
   {
     id: "sop2",
     title: "Unscheduled Treatment SOP",
-    description: "Workflow for converting planned treatment to scheduled appointments",
+    description: "Workflow for converting treatment finder cases to scheduled appointments",
     workflow: "treatment",
     attached: true,
     lastUpdated: "2024-04-15",
