@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Activity, Download, Upload, Bell, Settings,
-  TrendingUp, FileSpreadsheet, CheckCircle,
+  FileSpreadsheet, CheckCircle,
   XCircle, AlertCircle,
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -106,8 +106,6 @@ export default function DashboardShell() {
   const [importing, setImporting] = useState(false);
   const [allPatients, setAllPatients] = useState<Patient[]>(mockPatients);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const totalRevenue = mockDailyMetrics.revenueRecovered;
 
   // Show login screen if not logged in
   if (!currentStaffId) {
@@ -241,12 +239,6 @@ export default function DashboardShell() {
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-          <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-          <span className="text-xs font-semibold text-green-700">
-            ${totalRevenue.toLocaleString()} recovered today
-          </span>
-        </div>
 
         <button
           onClick={() => setShowImportModal(true)}
