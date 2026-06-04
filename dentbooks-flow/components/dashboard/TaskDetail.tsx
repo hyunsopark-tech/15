@@ -126,12 +126,6 @@ export default function TaskDetail({ patient, workflow }: Props) {
                 Guardian: <span className="font-medium text-slate-700">{patient.guardianName}</span>
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-green-700">
-                ${patient.estimatedValue.toLocaleString()}
-              </div>
-              <div className="text-xs text-slate-400">estimated value</div>
-            </div>
           </div>
 
           {/* Info grid */}
