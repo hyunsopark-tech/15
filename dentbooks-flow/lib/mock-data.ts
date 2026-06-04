@@ -333,7 +333,12 @@ export const recallChecklist: ChecklistItem[] = [
     ],
     script: `"Hi Mrs. [parent last name], this is [staff's name] from Memorial Children's Dentistry. We hope [patient's name] has been doing well! We noticed we haven't seen them in a while and wanted to check in. We'd love to help get her back on track with preventive care whenever you're ready. Please give us a call at 281-730-8080. We look forward to hearing from you."`,
   },
-  { id: "rc4", label: "If no answer, send text message", completed: false },
+  {
+    id: "rc4",
+    label: "If no answer, send text message",
+    completed: false,
+    script: `Hi! It's Memorial Children's Dentistry. We haven't seen {{names}} in a while and wanted to check in. We hope they've been doing well! If you'd like to schedule a visit, we're always happy to help. If you've moved, found another dentist, or no longer wish to receive reminders, just let us know so we can update our records. 😊`,
+  },
   { id: "rc6", label: "Document communication in commlog", completed: false },
 ];
 
