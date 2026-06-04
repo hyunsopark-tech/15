@@ -23,53 +23,52 @@ interface ImportResult {
   error?: string;
 }
 
-// Map a raw Excel row (object with column headers as keys) to a Patient
-function rowToPatient(row: Record<string, string>, index: number): Patient {
-  // Try common Open Dental column name variations (case-insensitive match done before calling)
-  const get = (...keys: string[]) => {
-    for (const k of keys) {
-      if (row[k] !== undefined && row[k] !== "") return String(row[k]).trim();
-    }
-    return "";
-  };
+// Convert Excel serial date number to ISO string (handles Open Dental .xls exports)
+function excelSerialToISO(serial: number | string): string {
+  const n = typeof serial === "string" ? parseFloat(serial) : serial;
+  if (!n || isNaN(n)) return "";
+  // Excel epoch: Jan 1 1900 = serial 1 (with leap-year-1900 bug so subtract 1 extra)
+  const date = new Date((n - 25569) * 86400 * 1000);
+  return date.toISOString().split("T")[0];
+}
 
-  const patientName =
-    get("Patient", "PatientName", "Patient Name", "Name", "Last, First") ||
-    `Imported Patient ${index + 1}`;
+// Map an Open Dental Recall List Excel row to a Patient object
+function rowToPatient(row: Record<string, unknown>, index: number): Patient {
+  const str = (v: unknown) => (v !== undefined && v !== null && v !== "" ? String(v).trim() : "");
 
-  const guardianName =
-    get("Guardian", "GuardianName", "Guardian Name", "Responsible Party", "ResponsibleParty", "Parent") ||
-    "Unknown Guardian";
+  // Name — Open Dental exports LName, FName, Preferred separately
+  const lname = str(row["LName"]);
+  const fname = str(row["Preferred"]) || str(row["FName"]);
+  const patientName = fname && lname ? `${fname} ${lname}` : lname || fname || `Patient ${index + 1}`;
 
+  // Guardian — not in recall export; use last name family as placeholder
+  const guardianName = lname ? `${lname} Family` : "See Open Dental";
+
+  // Phone — prefer home, fall back to wireless, then work
   const phone =
-    get("Phone", "PhoneNumber", "Phone Number", "HmPhone", "WkPhone", "Cell", "CellPhone", "WirelessPhone") ||
+    str(row["HmPhone"]) ||
+    str(row["WirelessPhone"]) ||
+    str(row["WkPhone"]) ||
     "—";
 
-  const insurance =
-    get("Insurance", "InsurancePlan", "Insurance Plan", "Plan", "Carrier", "PriCarrier") ||
-    "Unknown Insurance";
+  // Dates stored as Excel serial numbers
+  const dateDueSerial = Number(row["DateDue"]) || 0;
+  const birthdateSerial = Number(row["Birthdate"]) || 0;
 
-  const lastVisit =
-    get("LastVisit", "Last Visit", "LastVisitDate", "Last Visit Date", "DateLastVisit") ||
-    "";
+  const dateDueISO = excelSerialToISO(dateDueSerial);
+  const dobISO = excelSerialToISO(birthdateSerial);
 
-  const daysOverdue = parseInt(
-    get("DaysOverdue", "Days Overdue", "Days Past Due", "DaysPastDue", "Overdue") || "0",
-    10
-  ) || 0;
-
-  const recallType =
-    get("RecallType", "Recall Type", "Type", "ProcDescription", "Procedure") ||
-    "Prophy + Exam";
-
-  const provider =
-    get("Provider", "ProviderName", "Provider Name", "Dr", "Doctor") ||
-    "Unknown Provider";
+  // Days overdue = today minus due date (in days)
+  let daysOverdue = 0;
+  if (dateDueSerial > 0) {
+    const todaySerial = Math.floor(Date.now() / 86400000) + 25569;
+    daysOverdue = Math.max(0, todaySerial - dateDueSerial);
+  }
 
   const priority =
     daysOverdue >= 180 ? "critical"
     : daysOverdue >= 120 ? "high"
-    : daysOverdue >= 60 ? "medium"
+    : daysOverdue >= 60  ? "medium"
     : "low";
 
   return {
@@ -77,20 +76,22 @@ function rowToPatient(row: Record<string, string>, index: number): Patient {
     patientName,
     guardianName,
     phone,
-    insurance,
-    dob: get("DOB", "DateOfBirth", "BirthDate", "Birthdate") || "",
-    lastVisit: lastVisit || new Date(Date.now() - daysOverdue * 86400000).toISOString().split("T")[0],
-    provider,
+    insurance: "See Open Dental",
+    dob: dobISO,
+    lastVisit: dateDueISO,
+    provider: "See Open Dental",
     assignedStaff: "Lesley",
     priority,
     status: "new",
     daysOverdue,
     estimatedValue: 285,
     attemptCount: 0,
-    nextStep: "First outreach call — no contact yet",
-    notes: "",
+    nextStep: daysOverdue > 0
+      ? `Recall due ${daysOverdue} days ago — first outreach call`
+      : "Upcoming recall — monitor",
+    notes: `City: ${str(row["City"])}, ${str(row["State"])} ${str(row["Zip"])}`.trim(),
     workflow: "recall",
-    recallType,
+    recallType: "Prophy + Exam",
   };
 }
 
@@ -137,10 +138,10 @@ export default function DashboardShell() {
         const dataRows = rawRows.filter((r) => r.some((c) => c !== ""));
         const preview = dataRows.slice(0, 6);
 
-        // Parsed objects (header row as keys)
-        const objRows: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet, {
+        // Parsed objects (header row as keys) — keep raw types so serial dates stay numeric
+        const objRows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
           defval: "",
-        }) as Record<string, string>[];
+        }) as Record<string, unknown>[];
 
         const parsed = objRows.map((row, i) => rowToPatient(row, i));
 
