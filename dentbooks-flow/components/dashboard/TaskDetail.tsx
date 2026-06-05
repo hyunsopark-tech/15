@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone,
@@ -307,6 +307,9 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
           </div>
         </div>
 
+        {/* ── COMMLOG OUTCOME BUTTONS ─────────────────────────────── */}
+        <CommlogButtons patientName={patient.patientName} />
+
         {/* ── CHECKLIST ───────────────────────────────────────────── */}
         <div className="mb-4">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
@@ -338,6 +341,55 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
 
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+const COMMLOG_OUTCOMES = [
+  "Scheduled",
+  "Left VM",
+  "No Answer",
+  "Text Sent",
+  "Parent Will Call Back",
+  "Callback Requested",
+  "Declined",
+  "Moved",
+  "Other Dentist",
+  "Wrong Number",
+];
+
+function CommlogButtons({ patientName }: { patientName: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const handleClick = useCallback((label: string) => {
+    const text = `${label} — ${patientName}`;
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(label);
+    setTimeout(() => setCopied(null), 1800);
+  }, [patientName]);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4">
+      <h3 className="text-sm font-semibold text-slate-900 mb-2.5">Commlog Outcome</h3>
+      <p className="text-[11px] text-slate-400 mb-3">Click to copy outcome for Open Dental commlog</p>
+      <div className="flex flex-wrap gap-1.5">
+        {COMMLOG_OUTCOMES.map((label) => {
+          const isCopied = copied === label;
+          return (
+            <button
+              key={label}
+              onClick={() => handleClick(label)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                isCopied
+                  ? "bg-green-100 text-green-700 border-green-300"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+              }`}
+            >
+              {isCopied ? "✓ Copied!" : label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

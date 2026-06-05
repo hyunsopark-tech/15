@@ -376,7 +376,7 @@ export default function DashboardShell() {
         <nav className="flex items-center gap-1">
           {([
             { id: "workflows", label: "Revenue Recovery" },
-            { id: "callcenter", label: "📞 Call Center" },
+            { id: "callcenter", label: "📋 SOP & Scripts" },
             { id: "tracker", label: "Daily Tracker" },
           ] as const).map((v) => (
             <button

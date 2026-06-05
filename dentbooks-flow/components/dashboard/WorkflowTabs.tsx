@@ -5,8 +5,6 @@ import { motion } from "framer-motion";
 import { RefreshCw, Stethoscope, FileText } from "lucide-react";
 import WorkQueue from "./WorkQueue";
 import TaskDetail from "./TaskDetail";
-import AISupportPanel from "./AISupportPanel";
-import SOPPanel from "./SOPPanel";
 import { Patient, WorkflowType } from "@/lib/types";
 
 const TABS: { id: WorkflowType; label: string; icon: React.ElementType; color: string }[] = [
@@ -120,14 +118,6 @@ export default function WorkflowTabs({ patients, currentStaffId }: Props) {
           <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} currentStaffId={currentStaffId} onMarkComplete={handleMarkComplete} />
         </motion.div>
 
-        {/* RIGHT: AI + SOP */}
-        <div className="w-72 flex-shrink-0 border-l border-slate-200 bg-white overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-y-auto">
-            <AISupportPanel patient={selectedPatient} workflow={activeTab} />
-            <div className="border-t border-slate-200" />
-            <SOPPanel workflow={activeTab} />
-          </div>
-        </div>
       </div>
     </div>
   );
