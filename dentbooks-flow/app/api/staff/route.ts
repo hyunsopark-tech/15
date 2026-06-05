@@ -1,45 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import getDb from '@/lib/database';
-
-interface StaffMember {
-  id: string;
-  name: string;
-  role: string;
-  color: string;
-  initials: string;
-  position?: number;
-}
+import { getDatabase } from '@/lib/db';
 
 export async function GET() {
   try {
-    const db = getDb();
-    const rows = db.prepare('SELECT * FROM staff ORDER BY position ASC').all();
-    return NextResponse.json(rows);
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    const staff = await getDatabase().getAllStaff();
+    return NextResponse.json(staff);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const db = getDb();
-    const body = await request.json();
-
+    const body = await req.json();
+    const db = getDatabase();
     if (body.action === 'upsert') {
-      const staff: StaffMember = body.staff;
-      db.prepare(
-        'INSERT OR REPLACE INTO staff (id, name, role, color, initials, position) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(staff.id, staff.name, staff.role, staff.color, staff.initials, staff.position ?? 0);
-      return NextResponse.json({ ok: true });
+      await db.upsertStaff({ ...body.staff, position: body.staff.position ?? 0 });
+    } else if (body.action === 'delete') {
+      await db.deleteStaff(body.id);
+    } else {
+      return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
-
-    if (body.action === 'delete') {
-      db.prepare('DELETE FROM staff WHERE id = ?').run(body.id);
-      return NextResponse.json({ ok: true });
-    }
-
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

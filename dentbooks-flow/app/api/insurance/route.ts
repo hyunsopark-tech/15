@@ -1,43 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import getDb from '@/lib/database';
-
-interface InsuranceBlock {
-  id: string;
-  title: string;
-  body: string;
-  position: number;
-}
+import { getDatabase } from '@/lib/db';
 
 export async function GET() {
   try {
-    const db = getDb();
-    const rows = db.prepare('SELECT * FROM insurance_blocks ORDER BY position ASC').all();
-    return NextResponse.json(rows);
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    const blocks = await getDatabase().getInsuranceBlocks();
+    return NextResponse.json(blocks);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const db = getDb();
-    const body = await request.json();
-
+    const body = await req.json();
+    const db = getDatabase();
     if (body.action === 'upsert') {
-      const block: InsuranceBlock = body.block;
-      db.prepare(
-        'INSERT OR REPLACE INTO insurance_blocks (id, title, body, position) VALUES (?, ?, ?, ?)'
-      ).run(block.id, block.title, block.body, block.position ?? 0);
-      return NextResponse.json({ ok: true });
+      await db.upsertInsuranceBlock({ ...body.block, position: body.block.position ?? 0 });
+    } else if (body.action === 'delete') {
+      await db.deleteInsuranceBlock(body.id);
+    } else {
+      return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
-
-    if (body.action === 'delete') {
-      db.prepare('DELETE FROM insurance_blocks WHERE id = ?').run(body.id);
-      return NextResponse.json({ ok: true });
-    }
-
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
