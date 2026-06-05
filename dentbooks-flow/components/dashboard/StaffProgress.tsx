@@ -301,7 +301,10 @@ export default function StaffProgress({ currentStaffId }: Props) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      apiGetActivityLog().then((data) => setLogs(data));
+      apiGetActivityLog().then((data) => {
+        // Only replace state if API returned real data (has database)
+        if (Object.keys(data).length > 0) setLogs(data);
+      });
     }, 10000);
     return () => clearInterval(interval);
   }, []);
