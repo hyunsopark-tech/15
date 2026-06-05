@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Activity, Download, Upload, Bell, Settings,
@@ -14,6 +14,7 @@ import CallCenter from "./CallCenter";
 import LoginScreen from "./LoginScreen";
 import { mockDailyMetrics, mockPatients } from "@/lib/mock-data";
 import { Patient } from "@/lib/types";
+import { apiGetPatients, apiReplacePatients } from "@/lib/api-client";
 
 interface ImportResult {
   success: boolean;
@@ -258,6 +259,13 @@ export default function DashboardShell() {
   const [allPatients, setAllPatients] = useState<Patient[]>(mockPatients);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!currentStaffId) return;
+    apiGetPatients().then(dbPatients => {
+      if (dbPatients.length > 0) setAllPatients(dbPatients);
+    });
+  }, [currentStaffId]);
+
   // Show login screen if not logged in
   if (!currentStaffId) {
     return (
@@ -342,6 +350,7 @@ export default function DashboardShell() {
       ...prev.filter((p) => p.workflow !== workflow),
       ...importResult.parsed,
     ]);
+    apiReplacePatients(workflow, importResult.parsed);
     handleCloseImport();
   };
 

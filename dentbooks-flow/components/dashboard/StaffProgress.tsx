@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { apiGetStaff, apiGetActivityLog, apiAddActivity, apiDeleteActivity, type StaffLog, type ActivityEntry as ApiActivityEntry } from "@/lib/api-client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone, MessageSquare, Calendar,
@@ -13,18 +14,8 @@ import {
 
 type ActivityType = "call" | "text" | "appointment" | "task" | "note" | "escalation" | "recall" | "treatment" | "claims";
 
-interface ActivityEntry {
-  id: string;
-  type: ActivityType;
-  description: string;
-  timeLabel: string;
-}
-
-interface StaffLog {
-  staffId: string;
-  date: string;
-  entries: ActivityEntry[];
-}
+// Re-export to avoid duplicate type — use api-client's canonical types
+type ActivityEntry = ApiActivityEntry & { type: ActivityType };
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -34,14 +25,6 @@ const DEFAULT_STAFF_CONFIG = [
   { id: "jen",     name: "Jen",     role: "Front Desk",     color: "#0891B2", initials: "J" },
   { id: "idalia",  name: "Idalia",  role: "Front Desk",     color: "#16A34A", initials: "I" },
 ];
-
-function loadStaffConfig() {
-  if (typeof window === "undefined") return DEFAULT_STAFF_CONFIG;
-  try {
-    const raw = localStorage.getItem("dentbooks-staff-list");
-    return raw ? JSON.parse(raw) : DEFAULT_STAFF_CONFIG;
-  } catch { return DEFAULT_STAFF_CONFIG; }
-}
 
 const ACTIVITY_TYPES: {
   id: ActivityType;
@@ -63,16 +46,8 @@ const ACTIVITY_TYPES: {
   { id: "note",        label: "Note",       icon: FileText,      badge: "bg-slate-100 text-slate-600",  card: "border-slate-300"  },
 ];
 
-const STORAGE_KEY = "dentbooks-activity-log";
 const TODAY = new Date().toISOString().split("T")[0];
 
-function loadLogs(): Record<string, StaffLog> {
-  if (typeof window === "undefined") return {};
-  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
-}
-function saveLogs(d: Record<string, StaffLog>) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {}
-}
 function logKey(id: string, date = TODAY) { return `${id}:${date}`; }
 function emptyLog(staffId: string, date = TODAY): StaffLog { return { staffId, date, entries: [] }; }
 
@@ -320,8 +295,15 @@ export default function StaffProgress({ currentStaffId }: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setStaffConfig(loadStaffConfig());
-    setLogs(loadLogs());
+    apiGetStaff().then(data => { if (data.length > 0) setStaffConfig(data); });
+    apiGetActivityLog().then((data) => setLogs(data));
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      apiGetActivityLog().then((data) => setLogs(data));
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -350,7 +332,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
     const log = getLog(staffId);
     const updated = { ...logs, [logKey(staffId)]: { ...log, entries: [...log.entries, entry] } };
     setLogs(updated);
-    saveLogs(updated);
+    apiAddActivity(staffId, TODAY, entry);
     setDraftText("");
     setDraftType("call");
     setAddingTo(null);
@@ -360,7 +342,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
     const log = getLog(staffId);
     const updated = { ...logs, [logKey(staffId)]: { ...log, entries: log.entries.filter((e) => e.id !== entryId) } };
     setLogs(updated);
-    saveLogs(updated);
+    apiDeleteActivity(entryId);
   };
 
   const totalToday = staffConfig.reduce((n, s) => n + getLog(s.id).entries.length, 0);

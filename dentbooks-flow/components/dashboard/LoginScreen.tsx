@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, Plus, Trash2, X, UserPlus } from "lucide-react";
+import { apiGetStaff, apiUpsertStaff, apiDeleteStaff } from "@/lib/api-client";
 
 interface StaffMember {
   id: string;
@@ -19,24 +20,11 @@ const DEFAULT_STAFF: StaffMember[] = [
   { id: "idalia",  name: "Idalia",  role: "Front Desk",     color: "#16A34A", initials: "I" },
 ];
 
-const STORAGE_KEY = "dentbooks-staff-list";
 const COLORS = [
   "#7C3AED", "#2563EB", "#0891B2", "#16A34A",
   "#D97706", "#DC2626", "#DB2777", "#059669",
   "#7C3AED", "#1D4ED8", "#0E7490", "#15803D",
 ];
-
-function loadStaff(): StaffMember[] {
-  if (typeof window === "undefined") return DEFAULT_STAFF;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : DEFAULT_STAFF;
-  } catch { return DEFAULT_STAFF; }
-}
-
-function saveStaff(list: StaffMember[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
-}
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -62,7 +50,7 @@ export default function LoginScreen({ onLogin }: Props) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
-    setStaff(loadStaff());
+    apiGetStaff().then(data => { if (data.length > 0) setStaff(data); });
   }, []);
 
   const addUser = () => {
@@ -77,7 +65,7 @@ export default function LoginScreen({ onLogin }: Props) {
     };
     const updated = [...staff, newMember];
     setStaff(updated);
-    saveStaff(updated);
+    apiUpsertStaff(newMember);
     setNewName("");
     setNewRole("Front Desk");
     setShowAddModal(false);
@@ -86,7 +74,7 @@ export default function LoginScreen({ onLogin }: Props) {
   const deleteUser = (id: string) => {
     const updated = staff.filter((s) => s.id !== id);
     setStaff(updated);
-    saveStaff(updated);
+    apiDeleteStaff(id);
     setDeleteConfirmId(null);
   };
 

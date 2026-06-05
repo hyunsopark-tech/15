@@ -18,6 +18,7 @@ import {
   treatmentChecklist,
   claimsChecklist,
 } from "@/lib/mock-data";
+import { apiAddActivity } from "@/lib/api-client";
 
 interface Props {
   patient: Patient | null;
@@ -25,27 +26,6 @@ interface Props {
   workflow: WorkflowType;
   currentStaffId: string;
   onMarkComplete?: (patientId: string) => void;
-}
-
-const ACTIVITY_LOG_KEY = "dentbooks-activity-log";
-
-function logTaskCompletion(staffId: string, taskLabel: string, patientName: string, workflow: string) {
-  const today = new Date().toISOString().split("T")[0];
-  const key = `${staffId}:${today}`;
-  try {
-    const raw = localStorage.getItem(ACTIVITY_LOG_KEY);
-    const logs = raw ? JSON.parse(raw) : {};
-    const log = logs[key] ?? { staffId, date: today, entries: [] };
-    const now = new Date();
-    log.entries.push({
-      id: `${Date.now()}`,
-      type: workflow, // "recall" | "treatment" | "claims" — drives color in tracker
-      description: `✓ ${taskLabel} — ${patientName}`,
-      timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
-    });
-    logs[key] = log;
-    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(logs));
-  } catch {}
 }
 
 const PRIORITY_COLOR = {
@@ -132,7 +112,14 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
         if (item.id !== id) return item;
         const nowCompleted = !item.completed;
         if (nowCompleted && patient) {
-          logTaskCompletion(currentStaffId, item.label, patient.patientName, workflow);
+          const today = new Date().toISOString().split("T")[0];
+          const now = new Date();
+          apiAddActivity(currentStaffId, today, {
+            id: `${Date.now()}`,
+            type: workflow,
+            description: `✓ ${item.label} — ${patient.patientName}`,
+            timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+          });
         }
         return { ...item, completed: nowCompleted };
       })

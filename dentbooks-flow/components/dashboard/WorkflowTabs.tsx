@@ -6,6 +6,7 @@ import { RefreshCw, Stethoscope, FileText } from "lucide-react";
 import WorkQueue from "./WorkQueue";
 import TaskDetail from "./TaskDetail";
 import { Patient, WorkflowType } from "@/lib/types";
+import { apiGetCompleted, apiMarkComplete } from "@/lib/api-client";
 
 const TABS: { id: WorkflowType; label: string; icon: React.ElementType; color: string }[] = [
   { id: "recall",    label: "Overdue Recall",    icon: RefreshCw,   color: "blue"  },
@@ -31,30 +32,20 @@ function getFamilyKey(patient: Patient): string {
   return parts[parts.length - 1];
 }
 
-const COMPLETED_KEY = "dentbooks-completed-patients";
-
-function loadCompleted(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try { const r = localStorage.getItem(COMPLETED_KEY); return r ? new Set(JSON.parse(r)) : new Set(); } catch { return new Set(); }
-}
-function saveCompleted(s: Set<string>) {
-  try { localStorage.setItem(COMPLETED_KEY, JSON.stringify(Array.from(s))); } catch {}
-}
-
 export default function WorkflowTabs({ patients, currentStaffId }: Props) {
   const [activeTab, setActiveTab] = useState<WorkflowType>("recall");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => { setCompletedIds(loadCompleted()); }, []);
+  useEffect(() => { apiGetCompleted().then(ids => setCompletedIds(new Set(ids))); }, []);
 
   const handleMarkComplete = (patientId: string) => {
     setCompletedIds((prev) => {
       const next = new Set(prev);
       next.add(patientId);
-      saveCompleted(next);
       return next;
     });
+    apiMarkComplete(patientId);
   };
 
   const tabPatients = patients.filter((p) => p.workflow === activeTab);

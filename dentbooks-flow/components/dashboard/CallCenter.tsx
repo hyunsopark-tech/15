@@ -10,6 +10,13 @@ import {
   FileText, Shield, ClipboardList, Sparkles,
 } from "lucide-react";
 
+import {
+  apiGetSopBlocks, apiUpsertSopBlock, apiDeleteSopBlock,
+  apiGetInsuranceBlocks, apiUpsertInsuranceBlock, apiDeleteInsuranceBlock,
+  apiGetQA, apiUpsertQA, apiDeleteQA, apiSetOverride, apiClearOverride,
+  type SOPBlock, type InsuranceBlock,
+} from "@/lib/api-client";
+
 // ─── SECTION NAVIGATION ───────────────────────────────────────────────────────
 
 type Section = "scripts" | "sop" | "insurance";
@@ -34,17 +41,7 @@ interface QA {
   isEdited?: boolean;
 }
 
-interface SOPBlock {
-  id: string;
-  title: string;
-  body: string;
-}
-
-interface InsuranceBlock {
-  id: string;
-  title: string;
-  body: string;
-}
+// SOPBlock and InsuranceBlock types are imported from @/lib/api-client
 
 // ─── CALL SCRIPTS DATABASE ────────────────────────────────────────────────────
 
@@ -595,6 +592,23 @@ export default function CallCenter() {
     setOverrides(loadJSON(OVERRIDES_KEY, {}));
     setSopBlocks(loadJSON(SOP_KEY, DEFAULT_SOP_BLOCKS));
     setInsBlocks(loadJSON(INS_KEY, DEFAULT_INSURANCE_BLOCKS));
+
+    // Override with DB data if available
+    apiGetSopBlocks().then(data => { if (data.length > 0) setSopBlocks(data); });
+    apiGetInsuranceBlocks().then(data => { if (data.length > 0) setInsBlocks(data); });
+    apiGetQA().then(({ customQA: dbCustomQA, overrides: dbOverrides }) => {
+      if (dbCustomQA.length > 0) setCustomQA(dbCustomQA);
+      if (Object.keys(dbOverrides).length > 0) {
+        // API overrides are Record<string, string> (script-only); reconstruct as Partial<QA>
+        setOverrides(prev => {
+          const merged: Record<string, Partial<QA>> = { ...prev };
+          for (const [id, script] of Object.entries(dbOverrides)) {
+            merged[id] = { ...merged[id], script };
+          }
+          return merged;
+        });
+      }
+    });
   }, []);
 
   // ── Scripts logic ─────────────────────────────────────────────────────────
@@ -628,15 +642,18 @@ export default function CallCenter() {
     if (qa.isCustom) {
       const updated = customQA.map(q => q.id === qa.id ? { ...q, ...patch } : q);
       setCustomQA(updated); saveJSON(SCRIPTS_KEY, updated);
+      apiUpsertQA({ ...qa, ...patch });
     } else {
       const updated = { ...overrides, [qa.id]: { ...overrides[qa.id], ...patch } };
       setOverrides(updated); saveJSON(OVERRIDES_KEY, updated);
+      apiSetOverride(qa.id, inlineForm.script.trim());
     }
     setInlineEditId(null);
   };
   const resetBuiltIn = (id: string) => {
     const updated = { ...overrides }; delete updated[id];
     setOverrides(updated); saveJSON(OVERRIDES_KEY, updated);
+    apiClearOverride(id);
   };
   const saveNewScript = () => {
     if (!form.question.trim() || !form.script.trim()) return;
@@ -644,11 +661,13 @@ export default function CallCenter() {
     const newQA: QA = { id: `custom-${Date.now()}`, isCustom: true, question: form.question.trim(), category: form.category, keywords, script: form.script.trim(), tips: form.tips.trim() || undefined, followUp: form.followUp.trim() || undefined };
     const updated = [...customQA, newQA];
     setCustomQA(updated); saveJSON(SCRIPTS_KEY, updated);
+    apiUpsertQA(newQA);
     setShowModal(false);
   };
   const deleteQA = (id: string) => {
     const updated = customQA.filter(qa => qa.id !== id);
     setCustomQA(updated); saveJSON(SCRIPTS_KEY, updated);
+    apiDeleteQA(id);
     setDeleteConfirmId(null);
     if (expandedId === id) setExpandedId(null);
   };
@@ -657,30 +676,36 @@ export default function CallCenter() {
   const saveSopBlock = (id: string, title: string, body: string) => {
     const updated = sopBlocks.map(b => b.id === id ? { ...b, title, body } : b);
     setSopBlocks(updated); saveJSON(SOP_KEY, updated);
+    apiUpsertSopBlock({ id, title, body });
   };
   const addSopBlock = () => {
     const newBlock: SOPBlock = { id: `sop-custom-${Date.now()}`, title: "New SOP Section", body: "Edit this section..." };
     const updated = [...sopBlocks, newBlock];
     setSopBlocks(updated); saveJSON(SOP_KEY, updated);
+    apiUpsertSopBlock(newBlock);
   };
   const deleteSopBlock = (id: string) => {
     const updated = sopBlocks.filter(b => b.id !== id);
     setSopBlocks(updated); saveJSON(SOP_KEY, updated);
+    apiDeleteSopBlock(id);
   };
 
   // ── Insurance logic ───────────────────────────────────────────────────────
   const saveInsBlock = (id: string, title: string, body: string) => {
     const updated = insBlocks.map(b => b.id === id ? { ...b, title, body } : b);
     setInsBlocks(updated); saveJSON(INS_KEY, updated);
+    apiUpsertInsuranceBlock({ id, title, body });
   };
   const addInsBlock = () => {
     const newBlock: InsuranceBlock = { id: `ins-custom-${Date.now()}`, title: "New Insurance Section", body: "Edit this section..." };
     const updated = [...insBlocks, newBlock];
     setInsBlocks(updated); saveJSON(INS_KEY, updated);
+    apiUpsertInsuranceBlock(newBlock);
   };
   const deleteInsBlock = (id: string) => {
     const updated = insBlocks.filter(b => b.id !== id);
     setInsBlocks(updated); saveJSON(INS_KEY, updated);
+    apiDeleteInsuranceBlock(id);
   };
 
   return (
