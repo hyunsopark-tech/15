@@ -261,8 +261,9 @@ export default function DashboardShell() {
 
   useEffect(() => {
     if (!currentStaffId) return;
-    apiGetPatients().then(dbPatients => {
-      if (dbPatients.length > 0) setAllPatients(dbPatients);
+    // apiGetPatients checks localStorage first, then API — restores imported list across refreshes
+    apiGetPatients().then(saved => {
+      if (saved.length > 0) setAllPatients(saved);
     });
   }, [currentStaffId]);
 

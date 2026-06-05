@@ -54,6 +54,7 @@ const LS = {
   staff:     'dentbooks-staff-list',
   activity:  'dentbooks-activity-log',
   completed: 'dentbooks-completed-patients',
+  patients:  'dentbooks-patients',
 };
 
 function lsGet<T>(key: string, fallback: T): T {
@@ -109,18 +110,27 @@ export async function apiDeleteStaff(id: string): Promise<void> {
 }
 
 // ── Patients ──────────────────────────────────────────────────────────────────
-// Patients are imported fresh each day — no localStorage persistence needed.
 
 export async function apiGetPatients(workflow?: string): Promise<Patient[]> {
+  // Try API first (Supabase mode)
   try {
     const url = workflow ? `/api/patients?workflow=${encodeURIComponent(workflow)}` : '/api/patients';
     const res = await fetch(url);
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const data: Patient[] = await res.json();
+      if (data.length > 0) return data;
+    }
   } catch { /* fall through */ }
-  return [];
+  // Fallback: localStorage
+  const all = lsGet<Patient[]>(LS.patients, []);
+  return workflow ? all.filter(p => p.workflow === workflow) : all;
 }
 
 export async function apiReplacePatients(workflow: string, patients: Patient[]): Promise<void> {
+  // Always save to localStorage
+  const all = lsGet<Patient[]>(LS.patients, []).filter(p => p.workflow !== workflow);
+  lsSave(LS.patients, [...all, ...patients]);
+  // Try API
   try {
     await fetch('/api/patients', {
       method: 'POST',
@@ -133,15 +143,20 @@ export async function apiReplacePatients(workflow: string, patients: Patient[]):
 // ── Activity Log ──────────────────────────────────────────────────────────────
 
 export async function apiGetActivityLog(): Promise<Record<string, StaffLog>> {
+  // Always read localStorage first — it's instant and always up to date
+  const localData = lsGet<Record<string, StaffLog>>(LS.activity, {});
+  // If API has data (Supabase mode), merge it in — API entries take precedence
   try {
     const res = await fetch('/api/activity');
     if (res.ok) {
-      const data: Record<string, StaffLog> = await res.json();
-      if (Object.keys(data).length > 0) return data;
+      const apiData: Record<string, StaffLog> = await res.json();
+      if (Object.keys(apiData).length > 0) {
+        // Merge: keep local entries that aren't in API yet (just written), plus all API entries
+        return { ...localData, ...apiData };
+      }
     }
   } catch { /* fall through */ }
-  // Fallback: localStorage
-  return lsGet<Record<string, StaffLog>>(LS.activity, {});
+  return localData;
 }
 
 export async function apiAddActivity(staffId: string, date: string, entry: ActivityEntry): Promise<void> {
