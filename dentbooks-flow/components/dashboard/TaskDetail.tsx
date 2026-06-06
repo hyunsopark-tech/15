@@ -81,15 +81,30 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function TaskDetail({ patient, siblings, workflow, currentStaffId, onMarkComplete }: Props) {
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(
-    workflow === "recall"
-      ? recallChecklist
-      : workflow === "treatment"
-      ? treatmentChecklist
-      : claimsChecklist
-  );
+// ── Checklist persistence ─────────────────────────────────────────────────────
 
+const CHECKLIST_KEY = "dentbooks-checklist-state";
+
+function loadChecklistState(patientId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    return new Set<string>(all[patientId] ?? []);
+  } catch { return new Set(); }
+}
+
+function saveChecklistState(patientId: string, completedIds: Set<string>) {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[patientId] = Array.from(completedIds);
+    localStorage.setItem(CHECKLIST_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function TaskDetail({ patient, siblings, workflow, currentStaffId, onMarkComplete }: Props) {
   const baseChecklist =
     workflow === "recall"
       ? recallChecklist
@@ -97,9 +112,16 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
       ? treatmentChecklist
       : claimsChecklist;
 
-  // Reset checklist and notes when patient or workflow changes
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(baseChecklist);
+
+  // Load saved checklist state when patient changes
   useEffect(() => {
-    setChecklist(baseChecklist.map((item) => ({ ...item, completed: false })));
+    if (!patient) {
+      setChecklist(baseChecklist.map((item) => ({ ...item, completed: false })));
+      return;
+    }
+    const saved = loadChecklistState(patient.id);
+    setChecklist(baseChecklist.map((item) => ({ ...item, completed: saved.has(item.id) })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id, workflow]);
 
@@ -107,11 +129,12 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
   const progress = Math.round((completedCount / checklist.length) * 100);
 
   const toggleItem = (id: string) => {
-    setChecklist((prev) =>
-      prev.map((item) => {
+    if (!patient) return;
+    setChecklist((prev) => {
+      const next = prev.map((item) => {
         if (item.id !== id) return item;
         const nowCompleted = !item.completed;
-        if (nowCompleted && patient) {
+        if (nowCompleted) {
           const today = new Date().toISOString().split("T")[0];
           const now = new Date();
           apiAddActivity(currentStaffId, today, {
@@ -122,8 +145,12 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
           });
         }
         return { ...item, completed: nowCompleted };
-      })
-    );
+      });
+      // Save updated state to localStorage
+      const completedIds = new Set(next.filter(i => i.completed).map(i => i.id));
+      saveChecklistState(patient.id, completedIds);
+      return next;
+    });
   };
 
   if (!patient) {
