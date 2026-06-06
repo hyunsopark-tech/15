@@ -58,7 +58,7 @@ export default function WorkflowTabs({ patients, currentStaffId }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* ── TAB BAR ──────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 px-5 flex-shrink-0">
+      <div className="bg-white border-b border-pink-100 px-5 flex-shrink-0">
         <div className="flex items-end gap-0">
           {TABS.map((tab) => {
             const count = patients.filter((p) => p.workflow === tab.id).length;
@@ -88,7 +88,7 @@ export default function WorkflowTabs({ patients, currentStaffId }: Props) {
       {/* ── 3-PANEL LAYOUT ───────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT: Work Queue */}
-        <div className="w-80 flex-shrink-0 border-r border-slate-200 bg-white overflow-hidden flex flex-col">
+        <div className="w-80 flex-shrink-0 border-r border-pink-100 bg-white overflow-hidden flex flex-col">
           <WorkQueue
             patients={tabPatients}
             selectedPatient={selectedPatient}

@@ -556,7 +556,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
                       <div className="px-3 pb-3 pt-1">
                         <button
                           onClick={() => openAdd(s.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-300/60 hover:text-slate-700 text-sm font-medium transition-all"
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-500 hover:bg-pink-200/60 hover:text-slate-700 text-sm font-medium transition-all"
                         >
                           <Plus className="w-4 h-4" />
                           Add a card
