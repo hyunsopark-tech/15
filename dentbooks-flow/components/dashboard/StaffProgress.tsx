@@ -155,7 +155,7 @@ function CalendarView({ staffConfig, logs }: CalendarProps) {
               >
                 {/* Day number */}
                 <span className={`text-xs font-bold ${
-                  isSelected ? "text-white" : isToday ? "text-blue-700" : "text-slate-700"
+                  isSelected ? "text-white" : isToday ? "text-rose-600" : "text-slate-700"
                 }`}>
                   {day}
                 </span>
@@ -209,7 +209,7 @@ function CalendarView({ staffConfig, logs }: CalendarProps) {
               <p className="text-xs text-slate-400">{totalSelected} total {totalSelected === 1 ? "entry" : "entries"}</p>
             </div>
             {selectedDate === TODAY && (
-              <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">Today</span>
+              <span className="text-[10px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full">Today</span>
             )}
           </div>
 
@@ -421,7 +421,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
                 return (
                   <div
                     key={s.id}
-                    className="flex flex-col w-72 flex-shrink-0 rounded-2xl bg-slate-200/70"
+                    className="flex flex-col w-72 flex-shrink-0 rounded-2xl bg-pink-100/60"
                   >
                     {/* Column header */}
                     <div className="px-4 pt-4 pb-3 flex items-center justify-between">
@@ -528,7 +528,7 @@ export default function StaffProgress({ currentStaffId }: Props) {
                               }}
                               placeholder="What did you do? (Enter to save)"
                               rows={2}
-                              className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none mb-2"
+                              className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400/30 focus:border-rose-300 resize-none mb-2"
                             />
                             <div className="flex gap-2">
                               <button
