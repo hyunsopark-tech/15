@@ -147,9 +147,9 @@ function CalendarView({ staffConfig, logs }: CalendarProps) {
                 onClick={() => setSelectedDate(iso)}
                 className={`relative rounded-xl p-2 min-h-[72px] text-left transition-all border ${
                   isSelected
-                    ? "bg-blue-600 border-blue-600 shadow-md"
+                    ? "bg-gradient-to-br from-rose-500 to-pink-500 border-rose-500 shadow-md"
                     : isToday
-                    ? "bg-blue-50 border-blue-200 hover:border-blue-300"
+                    ? "bg-rose-50 border-rose-200 hover:border-rose-300"
                     : "bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm"
                 }`}
               >
@@ -351,11 +351,11 @@ export default function StaffProgress({ currentStaffId }: Props) {
   const manualTypes = ACTIVITY_TYPES.filter(t => !["recall", "treatment", "claims"].includes(t.id));
 
   return (
-    <div className="h-full flex flex-col bg-slate-100">
+    <div className="h-full flex flex-col bg-pink-50">
       {/* ── Top bar ──────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 px-6 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
+      <div className="flex-shrink-0 px-6 py-3 bg-white border-b border-pink-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-blue-600" />
+          <Users className="w-5 h-5 text-rose-400" />
           <span className="font-bold text-slate-900 text-base">Team Activity</span>
           <span className="text-xs text-slate-400">
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -363,13 +363,13 @@ export default function StaffProgress({ currentStaffId }: Props) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-blue-50 rounded-full px-3 py-1">
-            <Clock className="w-3.5 h-3.5 text-blue-500" />
-            <span className="text-xs font-semibold text-blue-700">{totalToday} entries today</span>
+          <div className="flex items-center gap-1.5 bg-rose-50 rounded-full px-3 py-1">
+            <Clock className="w-3.5 h-3.5 text-rose-400" />
+            <span className="text-xs font-semibold text-rose-600">{totalToday} entries today</span>
           </div>
 
           {/* View toggle */}
-          <div className="flex p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+          <div className="flex p-0.5 bg-pink-100 rounded-lg border border-pink-200">
             <button
               onClick={() => setView("board")}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${

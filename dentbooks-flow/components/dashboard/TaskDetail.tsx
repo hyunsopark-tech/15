@@ -46,7 +46,7 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
         ) : (
           <Square className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-slate-500" />
         )}
-        <span className={`text-xs leading-relaxed font-medium ${item.completed ? "line-through text-slate-400" : "text-slate-700"}`}>
+        <span className={`text-sm leading-relaxed font-medium ${item.completed ? "line-through text-slate-400" : "text-slate-700"}`}>
           {item.label}
         </span>
       </button>
@@ -55,7 +55,7 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
       {item.steps && !item.completed && (
         <ul className="ml-7 mb-1 space-y-0.5">
           {item.steps.map((step, i) => (
-            <li key={i} className="text-[11px] text-slate-500 flex items-start gap-1.5">
+            <li key={i} className="text-xs text-slate-500 flex items-start gap-1.5">
               <span className="mt-0.5 w-1 h-1 rounded-full bg-slate-300 flex-shrink-0" />
               {step}
             </li>
@@ -66,11 +66,11 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
       {/* Script — always visible when item is not completed */}
       {item.script && !item.completed && (
         <div className="ml-7 mb-2">
-          <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 mb-1.5">
+          <div className="flex items-center gap-1 text-xs font-semibold text-violet-600 mb-1.5">
             <ChevronRight className="w-3 h-3" />
             Voicemail script
           </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 text-xs text-slate-700 leading-relaxed italic">
+          <div className="bg-violet-50 border border-violet-100 rounded-lg px-3 py-2.5 text-sm text-slate-700 leading-relaxed italic">
             {item.script}
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
         )}
 
         {/* ── PATIENT HEADER ──────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-4">
+        <div className="bg-white rounded-xl border border-pink-100 shadow-sm p-5 mb-4">
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -312,11 +312,11 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
           )}
 
           {/* Next step */}
-          <div className="mt-3 flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <ChevronRight className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="mt-3 flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 rounded-lg">
+            <ChevronRight className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-blue-700 mb-0.5">Next Step</p>
-              <p className="text-sm text-blue-900">{patient.nextStep}</p>
+              <p className="text-xs font-semibold text-rose-700 mb-0.5">Next Step</p>
+              <p className="text-sm text-rose-900">{patient.nextStep}</p>
             </div>
           </div>
         </div>
@@ -326,9 +326,9 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
 
         {/* ── CHECKLIST ───────────────────────────────────────────── */}
         <div className="mb-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="bg-white rounded-xl border border-pink-100 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-900">Workflow Checklist</h3>
+              <h3 className="text-base font-semibold text-slate-900">Workflow Checklist</h3>
               <span className="text-xs font-medium text-slate-500">
                 {completedCount}/{checklist.length}
               </span>
@@ -337,7 +337,7 @@ export default function TaskDetail({ patient, siblings, workflow, currentStaffId
             {/* Progress bar */}
             <div className="h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
               <motion.div
-                className="h-full bg-green-500 rounded-full"
+                className="h-full bg-gradient-to-r from-rose-400 to-pink-400 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.3 }}
@@ -382,7 +382,7 @@ function CommlogButtons({ patientName }: { patientName: string }) {
   }, [patientName]);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4">
+    <div className="bg-white rounded-xl border border-pink-100 shadow-sm p-4 mb-4">
       <h3 className="text-sm font-semibold text-slate-900 mb-2.5">Commlog Outcome</h3>
       <p className="text-[11px] text-slate-400 mb-3">Click to copy outcome for Open Dental commlog</p>
       <div className="flex flex-wrap gap-1.5">
@@ -395,7 +395,7 @@ function CommlogButtons({ patientName }: { patientName: string }) {
               className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
                 isCopied
                   ? "bg-green-100 text-green-700 border-green-300"
-                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300"
               }`}
             >
               {isCopied ? "✓ Copied!" : label}
@@ -419,7 +419,7 @@ function InfoCard({
   valueClass?: string;
 }) {
   return (
-    <div className="bg-slate-50 rounded-lg p-2.5">
+    <div className="bg-pink-50/50 rounded-lg p-2.5">
       <div className="flex items-center gap-1.5 mb-0.5">
         <Icon className="w-3 h-3 text-slate-400" />
         <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">

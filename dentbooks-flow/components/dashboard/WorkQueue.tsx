@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLOR: Record<string, string> = {
   new: "bg-slate-100 text-slate-600",
-  "in-progress": "bg-blue-100 text-blue-700",
+  "in-progress": "bg-violet-100 text-violet-700",
   attempted: "bg-amber-100 text-amber-700",
   scheduled: "bg-green-100 text-green-700",
   resolved: "bg-green-200 text-green-800",
@@ -159,7 +159,7 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
             placeholder="Search patients, insurance..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-400/30 focus:border-rose-300"
           />
         </div>
 
@@ -226,7 +226,7 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                   onClick={() => hasMultiple ? toggleGroup(group.key) : onSelect(group.patients[0])}
                   className={`w-full text-left px-4 py-3 transition-all border-l-2 ${
                     allDone ? "opacity-40" : ""
-                  } ${hasSelected ? "bg-blue-50 border-l-blue-500" : "hover:bg-slate-50 border-l-transparent"}`}
+                  } ${hasSelected ? "bg-rose-50 border-l-rose-500" : "hover:bg-pink-50 border-l-transparent"}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -285,7 +285,7 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className="overflow-hidden bg-slate-50"
+                      className="overflow-hidden bg-pink-50/50"
                     >
                       {group.patients.map((patient) => {
                         const isSelected = selectedPatient?.id === patient.id;
@@ -298,7 +298,7 @@ export default function WorkQueue({ patients, selectedPatient, onSelect, workflo
                             onClick={() => onSelect(patient)}
                             className={`w-full text-left pl-8 pr-4 py-2.5 border-b border-slate-100 last:border-0 transition-all border-l-2 ${
                               isDone ? "opacity-40" : ""
-                            } ${isSelected ? "bg-blue-100 border-l-blue-500" : "hover:bg-slate-100 border-l-transparent"}`}
+                            } ${isSelected ? "bg-rose-100 border-l-rose-500" : "hover:bg-pink-50 border-l-transparent"}`}
                           >
                             <div className="flex items-center gap-2">
                               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ppc.dot}`} />

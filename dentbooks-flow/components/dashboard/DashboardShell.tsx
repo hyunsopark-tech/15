@@ -370,16 +370,16 @@ export default function DashboardShell() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-pink-50 overflow-hidden">
       {/* ── TOP NAV ──────────────────────────────────────────────── */}
-      <header className="h-14 bg-white border-b border-slate-200 flex items-center px-5 gap-4 z-20 shadow-sm flex-shrink-0">
+      <header className="h-14 bg-white border-b border-pink-100 flex items-center px-5 gap-4 z-20 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-2.5 mr-4">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center">
             <Activity className="w-4 h-4 text-white" />
           </div>
           <div className="leading-none">
             <div className="font-bold text-slate-900 text-sm">DentBooks</div>
-            <div className="text-[10px] text-blue-600 font-semibold tracking-wider uppercase">Flow</div>
+            <div className="text-[10px] text-rose-500 font-semibold tracking-wider uppercase">Flow</div>
           </div>
         </div>
 
@@ -394,8 +394,8 @@ export default function DashboardShell() {
               onClick={() => { setActiveView(v.id); if (v.id === "tracker") setTrackerMountKey((k) => k + 1); }}
               className={`px-3.5 py-1.5 text-sm font-medium rounded-md transition-all ${
                 activeView === v.id
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  ? "bg-rose-50 text-rose-600"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-pink-50"
               }`}
             >
               {v.label}
@@ -428,7 +428,7 @@ export default function DashboardShell() {
           Import Aging Claims
         </button>
 
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all">
+        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 rounded-lg transition-all">
           <Download className="w-3.5 h-3.5" />
           Export Daily Report
         </button>
@@ -436,7 +436,7 @@ export default function DashboardShell() {
         <div className="flex items-center gap-1 ml-1">
           <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all relative">
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-400 rounded-full" />
           </button>
           <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all">
             <Settings className="w-4 h-4" />
@@ -503,24 +503,24 @@ export default function DashboardShell() {
             </div>
 
             <div className="p-5">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-xs font-semibold text-blue-800 mb-1">How to export from Open Dental:</p>
+              <div className="bg-rose-50 border border-rose-100 rounded-lg p-3 mb-4">
+                <p className="text-xs font-semibold text-rose-800 mb-1">How to export from Open Dental:</p>
                 {importMode === "treatment" ? (
-                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                  <ol className="text-xs text-rose-700 space-y-0.5 list-decimal list-inside">
                     <li>Reports → Standard → Patient Lists → Treatment Finder</li>
                     <li>Set date range and filter as needed</li>
                     <li>Click Export → Save as Excel (.xls or .xlsx)</li>
                     <li>Upload that file here — patients sorted by highest treatment value</li>
                   </ol>
                 ) : importMode === "claims" ? (
-                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                  <ol className="text-xs text-rose-700 space-y-0.5 list-decimal list-inside">
                     <li>In Open Dental, go to <strong>Reports → Standard → Aging of A/R</strong></li>
                     <li>Set the report date and click <strong>Run</strong></li>
                     <li>Click <strong>Export</strong> → Save as Excel (.xls or .xlsx)</li>
                     <li>Upload that file here — only rows with outstanding insurance balances are imported</li>
                   </ol>
                 ) : (
-                  <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+                  <ol className="text-xs text-rose-700 space-y-0.5 list-decimal list-inside">
                     <li>In Open Dental, go to the <strong>Appt</strong> tab → <strong>Lists</strong> → <strong>Recall</strong></li>
                     <li>Set the date to <strong>6 months before today</strong> (e.g. today is 6/4/2026 → enter 12/4/2025)</li>
                     <li>Click <strong>Refresh</strong></li>
@@ -612,7 +612,7 @@ export default function DashboardShell() {
               {!importResult && (
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-1.5"
+                  className="px-4 py-2 text-sm text-white bg-rose-500 hover:bg-rose-600 rounded-lg flex items-center gap-1.5"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Browse Files

@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
+    --background: 330 60% 98%;
     --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 47.4% 11.2%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 222.2 47.4% 37%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --primary: 336 80% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 330 100% 97%;
+    --secondary-foreground: 336 80% 30%;
+    --muted: 330 60% 96%;
+    --muted-foreground: 330 10% 45%;
+    --accent: 330 100% 97%;
+    --accent-foreground: 336 80% 30%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 47.4% 37%;
+    --border: 330 50% 90%;
+    --input: 330 50% 90%;
+    --ring: 336 80% 58%;
     --radius: 0.75rem;
   }
 }
@@ -38,8 +38,8 @@
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: #f9a8d4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #f472b6; }
 
 /* Queue item hover */
 .queue-item { transition: all 0.15s ease; }

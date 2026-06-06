@@ -9,15 +9,15 @@ import { Patient, WorkflowType } from "@/lib/types";
 import { apiGetCompleted, apiMarkComplete } from "@/lib/api-client";
 
 const TABS: { id: WorkflowType; label: string; icon: React.ElementType; color: string }[] = [
-  { id: "recall",    label: "Overdue Recall",    icon: RefreshCw,   color: "blue"  },
-  { id: "treatment", label: "Treatment Finder",    icon: Stethoscope, color: "amber" },
-  { id: "claims",    label: "Aging Claims",       icon: FileText,    color: "red"   },
+  { id: "recall",    label: "Overdue Recall",    icon: RefreshCw,   color: "rose"   },
+  { id: "treatment", label: "Treatment Finder",  icon: Stethoscope, color: "violet" },
+  { id: "claims",    label: "Aging Claims",      icon: FileText,    color: "orange" },
 ];
 
 const COLOR_MAP = {
-  blue:  { tab: "border-blue-600 text-blue-700 bg-blue-50",   inactive: "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300", badge: "bg-blue-100 text-blue-700"  },
-  amber: { tab: "border-amber-500 text-amber-700 bg-amber-50", inactive: "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300", badge: "bg-amber-100 text-amber-700" },
-  red:   { tab: "border-red-500 text-red-700 bg-red-50",       inactive: "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300", badge: "bg-red-100 text-red-700"    },
+  rose:   { tab: "border-rose-500 text-rose-700 bg-rose-50",     inactive: "border-transparent text-slate-500 hover:text-slate-700 hover:border-pink-200",   badge: "bg-rose-100 text-rose-700"   },
+  violet: { tab: "border-violet-500 text-violet-700 bg-violet-50", inactive: "border-transparent text-slate-500 hover:text-slate-700 hover:border-pink-200", badge: "bg-violet-100 text-violet-700" },
+  orange: { tab: "border-orange-400 text-orange-700 bg-orange-50", inactive: "border-transparent text-slate-500 hover:text-slate-700 hover:border-pink-200", badge: "bg-orange-100 text-orange-700" },
 };
 
 interface Props {
@@ -104,7 +104,7 @@ export default function WorkflowTabs({ patients, currentStaffId }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
-          className="flex-1 overflow-hidden bg-slate-50"
+          className="flex-1 overflow-hidden bg-pink-50/40"
         >
           <TaskDetail patient={selectedPatient} siblings={selectedGroup} workflow={activeTab} currentStaffId={currentStaffId} onMarkComplete={handleMarkComplete} />
         </motion.div>

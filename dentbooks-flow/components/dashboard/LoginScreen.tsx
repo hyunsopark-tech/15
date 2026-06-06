@@ -79,7 +79,7 @@ export default function LoginScreen({ onLogin }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-50 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 flex flex-col items-center justify-center p-6">
       {/* Logo */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -87,12 +87,12 @@ export default function LoginScreen({ onLogin }: Props) {
         transition={{ duration: 0.4 }}
         className="flex items-center gap-3 mb-10"
       >
-        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shadow-lg">
           <Activity className="w-6 h-6 text-white" />
         </div>
         <div>
           <div className="text-2xl font-bold text-slate-900">DentBooks</div>
-          <div className="text-sm text-blue-600 font-semibold tracking-widest uppercase">Flow</div>
+          <div className="text-sm text-rose-500 font-semibold tracking-widest uppercase">Flow</div>
         </div>
       </motion.div>
 
@@ -101,7 +101,7 @@ export default function LoginScreen({ onLogin }: Props) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 w-full max-w-md"
+        className="bg-white rounded-3xl shadow-xl border border-pink-100 p-8 w-full max-w-md"
       >
         <h1 className="text-xl font-bold text-slate-900 text-center mb-1">Who are you?</h1>
         <p className="text-sm text-slate-400 text-center mb-8">Tap your name to get started</p>
@@ -117,7 +117,7 @@ export default function LoginScreen({ onLogin }: Props) {
             >
               <button
                 onClick={() => onLogin(s.id, s.name)}
-                className="flex-1 flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
+                className="flex-1 flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-pink-200 hover:bg-pink-50 transition-all group"
               >
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform"
@@ -148,7 +148,7 @@ export default function LoginScreen({ onLogin }: Props) {
         <div className="mt-6 flex gap-2">
           <button
             onClick={() => { setShowAddModal(true); setShowManage(false); }}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all text-sm font-medium"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-dashed border-slate-300 text-slate-500 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50 transition-all text-sm font-medium"
           >
             <Plus className="w-4 h-4" /> Add User
           </button>
@@ -157,7 +157,7 @@ export default function LoginScreen({ onLogin }: Props) {
             className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border text-sm font-medium transition-all ${
               showManage
                 ? "border-red-200 text-red-600 bg-red-50"
-                : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                : "border-slate-200 text-slate-500 hover:border-pink-200 hover:bg-pink-50"
             }`}
           >
             <Trash2 className="w-4 h-4" />
@@ -188,8 +188,8 @@ export default function LoginScreen({ onLogin }: Props) {
             >
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <UserPlus className="w-4 h-4 text-blue-600" />
+                  <div className="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center">
+                    <UserPlus className="w-4 h-4 text-rose-500" />
                   </div>
                   <h2 className="font-bold text-slate-900">Add New User</h2>
                 </div>
@@ -208,7 +208,7 @@ export default function LoginScreen({ onLogin }: Props) {
                     onKeyDown={(e) => e.key === "Enter" && addUser()}
                     placeholder="e.g. Maria"
                     autoFocus
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400/30 focus:border-rose-300"
                   />
                 </div>
                 <div>
@@ -218,7 +218,7 @@ export default function LoginScreen({ onLogin }: Props) {
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
                     placeholder="e.g. Front Desk"
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400/30 focus:border-rose-300"
                   />
                 </div>
 
@@ -248,7 +248,7 @@ export default function LoginScreen({ onLogin }: Props) {
                 <button
                   onClick={addUser}
                   disabled={!newName.trim()}
-                  className="flex-1 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 text-sm font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Add User
                 </button>
