@@ -323,48 +323,157 @@ export const mockPatients: Patient[] = [
 // ─── CHECKLISTS ──────────────────────────────────────────────────────────────
 
 export const recallChecklist: ChecklistItem[] = [
-  { id: "rc1", label: "Confirm patient is overdue in Open Dental", completed: false },
-  { id: "rc2", label: "Review last visit date & treatment history", completed: false },
-  { id: "rc3", label: "Call parent / guardian", completed: false },
-  { id: "rc4", label: "If no answer, send text message", completed: false },
-  { id: "rc5", label: "Offer 2 specific appointment time slots", completed: false },
+  {
+    id: "rc1",
+    label: "Call patient",
+    completed: false,
+    steps: [
+      "Confirm patient is active and overdue in Open Dental",
+      "Review treatment plan and any outstanding care",
+    ],
+    script: `"Hi Mrs. [parent last name], this is [staff's name] from Memorial Children's Dentistry. We hope [patient's name] has been doing well! We noticed we haven't seen them in a while and wanted to check in. We'd love to help get her back on track with preventive care whenever you're ready. Please give us a call at 281-730-8080. We look forward to hearing from you."`,
+  },
+  {
+    id: "rc4",
+    label: "If no answer, send text message",
+    completed: false,
+    script: `Hi! It's Memorial Children's Dentistry. We haven't seen {{names}} in a while and wanted to check in. We hope they've been doing well! If you'd like to schedule a visit, we're always happy to help. If you've moved, found another dentist, or no longer wish to receive reminders, just let us know so we can update our records. 😊`,
+  },
   { id: "rc6", label: "Document communication in commlog", completed: false },
-  { id: "rc7", label: "Set follow-up task (3–5 business days)", completed: false },
-  { id: "rc8", label: "Escalate to manager after 3 failed attempts", completed: false },
 ];
 
 export const treatmentChecklist: ChecklistItem[] = [
-  { id: "tc1", label: "Confirm active unscheduled treatment plan in Open Dental", completed: false },
-  { id: "tc2", label: "Review provider notes & urgency level", completed: false },
-  { id: "tc3", label: "Check insurance estimate & pre-auth status", completed: false },
-  { id: "tc4", label: "Call guardian — use warm, non-fear-based language", completed: false },
-  { id: "tc5", label: "Explain clinical recommendation & urgency", completed: false },
-  { id: "tc6", label: "Review payment options (insurance, Care Credit)", completed: false },
-  { id: "tc7", label: "Offer available appointment blocks", completed: false },
-  { id: "tc8", label: "Document parent barrier in commlog", completed: false },
-  { id: "tc9", label: "Set follow-up date & task", completed: false },
+  {
+    id: "tc1",
+    label: "Review chart before calling",
+    completed: false,
+    steps: [
+      "Open patient in Open Dental — confirm treatment plan is still unscheduled",
+      "Note treatment plan total and what procedures are included",
+      "Check insurance remaining benefit (amountRemainingInd) and carrier",
+      "Flag as VIP if annual max ≥ $2,000 and plan is > $1,000 — handle with extra care",
+      "Check commlog for any prior contact attempts or parent concerns",
+    ],
+  },
+  {
+    id: "tc2",
+    label: "Call guardian",
+    completed: false,
+    steps: [
+      "Lead with care, not sales — the doctor recommends this for a reason",
+      "Acknowledge the parent's time and reassure, never pressure",
+      "For VIP families: use first name, reference their specific plan warmly",
+      "Mention insurance coverage first to ease financial anxiety",
+    ],
+    script: `"Hi [parent's name], this is [staff's name] calling from Memorial Children's Dentistry. Dr. [provider] wanted us to reach out because [patient's name] has a treatment plan on file that we'd love to help get scheduled. We know life gets busy, so we just wanted to check in and see how [patient's name] is doing and if there's anything we can help with to make it easier to come in. We have some great appointment times available, and your insurance [carrier name] should cover a good portion of the visit. No pressure at all — we just care about [patient's name]'s smile and want to make sure they're comfortable and healthy!"`,
+  },
+  {
+    id: "tc3",
+    label: "If no answer, leave a warm voicemail",
+    completed: false,
+    script: `"Hi [parent's name], this is [staff's name] from Memorial Children's Dentistry. We're reaching out because [patient's name] has a treatment plan on file and we just wanted to make sure they're doing well. We'd love to connect and help get that scheduled at your convenience — no rush at all. Feel free to give us a call at 281-730-8080 whenever works for you. We look forward to hearing from you. Have a wonderful day!"`,
+  },
+  {
+    id: "tc4",
+    label: "If still no response after 2 days, send a text",
+    completed: false,
+    script: `Hi! It's Memorial Children's Dentistry reaching out about [patient's name]'s treatment plan. We just want to make sure they're doing well and that we can help get their care scheduled at a time that works for your family. No rush — just give us a call at 281-730-8080 or reply here whenever you're ready. We're always happy to help! 😊`,
+  },
+  {
+    id: "tc5",
+    label: "Document in commlog",
+    completed: false,
+    steps: [
+      "Log outcome: reached / left voicemail / sent text / no response",
+      "Note any parent concerns (cost, scheduling, anxiety, etc.)",
+      "If scheduled: note date and time",
+      "If declined: note reason and set a 30-day follow-up task",
+    ],
+  },
 ];
 
 export const claimsChecklist: ChecklistItem[] = [
-  { id: "cc1", label: "Open insurance aging report in Open Dental", completed: false },
-  { id: "cc2", label: "Confirm claim submission date & claim number", completed: false },
-  { id: "cc3", label: "Check payer portal for current status", completed: false },
-  { id: "cc4", label: "Review denial code / EOB reason", completed: false },
-  { id: "cc5", label: "Verify all attachments & narratives submitted", completed: false },
-  { id: "cc6", label: "Call insurance if no portal resolution", completed: false },
-  { id: "cc7", label: "Document reference number in commlog", completed: false },
-  { id: "cc8", label: "Correct errors and resubmit claim", completed: false },
-  { id: "cc9", label: "Set 14-day follow-up task", completed: false },
+  {
+    id: "cc1",
+    label: "Pull up the account in Open Dental",
+    completed: false,
+    steps: [
+      "Search patient by guarantor name → open their Account module",
+      "Locate the outstanding claim — note the date submitted, claim #, and payer",
+      "Check the claim status in Open Dental: Sent / Received / No response",
+      "Note the age bucket: 0–30 / 31–60 / 61–90 / 90+ days",
+      "Flag any claim over 90 days for office manager review",
+    ],
+  },
+  {
+    id: "cc2",
+    label: "Investigate why the claim is unpaid",
+    completed: false,
+    steps: [
+      "Log into the insurance portal (Availity, payer website, or clearinghouse)",
+      "Look up the claim by patient name, DOB, or claim number",
+      "If denied: read the denial code / EOB reason carefully",
+      "Common issues to check: missing/wrong NPI, incorrect patient DOB, missing attachments or X-rays, no narrative, bundling/downcoding, COB needed, duplicate on file",
+      "If no record found: claim may not have been sent — check clearinghouse report in Open Dental",
+    ],
+  },
+  {
+    id: "cc3",
+    label: "Call insurance if portal shows no clear resolution",
+    completed: false,
+    steps: [
+      "Call the provider services line on the back of the insurance card",
+      "Have ready: NPI, Tax ID, patient DOB, claim number, date of service",
+      "Ask specifically: 'What is the current status of this claim and what is needed to process it?'",
+      "Get a reference number for every call",
+    ],
+    script: `"Hi, this is [staff name] calling from Memorial Children's Dentistry. Our NPI is [NPI] and Tax ID is [Tax ID]. I'm calling about a claim for patient [patient name], date of birth [DOB], for dates of service [DOS]. The claim number is [#]. Can you tell me the current status of this claim and if anything is needed on our end to get it processed? … [If denied] What is the denial reason and what is the appeal process? … [Always] Can I get a reference number for this call?"`,
+  },
+  {
+    id: "cc4",
+    label: "Take corrective action based on findings",
+    completed: false,
+    steps: [
+      "Never sent / no record: resubmit the claim from Open Dental with all attachments",
+      "Denied – missing info: correct the error (fix NPI, DOB, add narrative/X-ray) and resubmit",
+      "Denied – bundling or downcoding: add a narrative explaining medical necessity and appeal",
+      "COB (coordination of benefits) needed: submit to primary first, then secondary with EOB",
+      "Pending with no ETA: note reference # and set a 2-week follow-up",
+      "Paid but underpaid: compare EOB to fee schedule — appeal if contractual adjustment is wrong",
+    ],
+  },
+  {
+    id: "cc5",
+    label: "Document everything in commlog",
+    completed: false,
+    steps: [
+      "Log what you found: portal status, denial code, or phone call outcome",
+      "Record the insurance reference number from any phone call",
+      "Note what action was taken: resubmitted / appealed / corrected / waiting",
+      "If claim was corrected and resubmitted, note the new submission date",
+    ],
+  },
+  {
+    id: "cc6",
+    label: "Set a 2-week follow-up task in Open Dental",
+    completed: false,
+    steps: [
+      "Create a Task in Open Dental assigned to yourself with a due date 14 days from today",
+      "Title: 'Follow up claim – [Payer] – [Patient Name]'",
+      "If claim is 90+ days old: loop in office manager and consider sending a formal appeal letter",
+      "If no resolution after second follow-up: escalate to office manager immediately",
+    ],
+  },
 ];
 
 // ─── STAFF ───────────────────────────────────────────────────────────────────
 
 export const mockStaff: StaffMember[] = [
   {
-    id: "s1",
+    id: "vanessa",
     name: "Vanessa",
-    role: "Manager",
-    initials: "VR",
+    role: "Office Manager",
+    initials: "V",
     color: "#7C3AED",
     assignedTasks: 12,
     completedToday: 8,
@@ -374,10 +483,10 @@ export const mockStaff: StaffMember[] = [
     dailyScore: 91,
   },
   {
-    id: "s2",
+    id: "lesley",
     name: "Lesley",
-    role: "Front Lead",
-    initials: "LM",
+    role: "Front Desk",
+    initials: "L",
     color: "#2563EB",
     assignedTasks: 18,
     completedToday: 11,
@@ -387,17 +496,30 @@ export const mockStaff: StaffMember[] = [
     dailyScore: 84,
   },
   {
-    id: "s3",
-    name: "Ashley",
+    id: "jen",
+    name: "Jen",
     role: "Front Desk",
-    initials: "AT",
-    color: "#16A34A",
+    initials: "J",
+    color: "#0891B2",
     assignedTasks: 15,
     completedToday: 9,
     pending: 4,
     overdue: 2,
     revenueRecovered: 2680,
     dailyScore: 78,
+  },
+  {
+    id: "idalia",
+    name: "Idalia",
+    role: "Front Desk",
+    initials: "I",
+    color: "#16A34A",
+    assignedTasks: 14,
+    completedToday: 7,
+    pending: 5,
+    overdue: 2,
+    revenueRecovered: 2100,
+    dailyScore: 74,
   },
 ];
 
@@ -433,7 +555,7 @@ export const mockSOPs: SOPDocument[] = [
   {
     id: "sop2",
     title: "Unscheduled Treatment SOP",
-    description: "Workflow for converting planned treatment to scheduled appointments",
+    description: "Workflow for converting treatment finder cases to scheduled appointments",
     workflow: "treatment",
     attached: true,
     lastUpdated: "2024-04-15",

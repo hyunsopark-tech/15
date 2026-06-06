@@ -1,21 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone,
-  MessageSquare,
   CheckSquare,
   Square,
-  Save,
-  CheckCircle,
   AlertTriangle,
-  User,
-  Shield,
-  Calendar,
   Clock,
   DollarSign,
-  FileText,
   ChevronRight,
   Clipboard,
 } from "lucide-react";
@@ -25,10 +18,14 @@ import {
   treatmentChecklist,
   claimsChecklist,
 } from "@/lib/mock-data";
+import { apiAddActivity } from "@/lib/api-client";
 
 interface Props {
   patient: Patient | null;
+  siblings: Patient[];
   workflow: WorkflowType;
+  currentStaffId: string;
+  onMarkComplete?: (patientId: string) => void;
 }
 
 const PRIORITY_COLOR = {
@@ -38,18 +35,76 @@ const PRIORITY_COLOR = {
   low: "text-slate-600 bg-slate-50 border-slate-200",
 };
 
-export default function TaskDetail({ patient, workflow }: Props) {
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(
-    workflow === "recall"
-      ? recallChecklist
-      : workflow === "treatment"
-      ? treatmentChecklist
-      : claimsChecklist
-  );
-  const [note, setNote] = useState("");
-  const [noteSaved, setNoteSaved] = useState(false);
-  const [completed, setCompleted] = useState(false);
+// ── ChecklistRow ──────────────────────────────────────────────────────────────
 
+function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () => void }) {
+  return (
+    <div className={`rounded-lg border transition-all ${item.completed ? "border-slate-100 bg-slate-50" : "border-transparent"}`}>
+      <button onClick={onToggle} className="flex items-start gap-2 w-full text-left group px-1 py-1">
+        {item.completed ? (
+          <CheckSquare className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+        ) : (
+          <Square className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-slate-500" />
+        )}
+        <span className={`text-sm leading-relaxed font-medium ${item.completed ? "line-through text-slate-400" : "text-slate-700"}`}>
+          {item.label}
+        </span>
+      </button>
+
+      {/* Sub-steps */}
+      {item.steps && !item.completed && (
+        <ul className="ml-7 mb-1 space-y-0.5">
+          {item.steps.map((step, i) => (
+            <li key={i} className="text-xs text-slate-500 flex items-start gap-1.5">
+              <span className="mt-0.5 w-1 h-1 rounded-full bg-slate-300 flex-shrink-0" />
+              {step}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Script — always visible when item is not completed */}
+      {item.script && !item.completed && (
+        <div className="ml-7 mb-2">
+          <div className="flex items-center gap-1 text-xs font-semibold text-violet-600 mb-1.5">
+            <ChevronRight className="w-3 h-3" />
+            Voicemail script
+          </div>
+          <div className="bg-violet-50 border border-violet-100 rounded-lg px-3 py-2.5 text-sm text-slate-700 leading-relaxed italic">
+            {item.script}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Checklist persistence ─────────────────────────────────────────────────────
+
+const CHECKLIST_KEY = "dentbooks-checklist-state";
+
+function loadChecklistState(patientId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    return new Set<string>(all[patientId] ?? []);
+  } catch { return new Set(); }
+}
+
+function saveChecklistState(patientId: string, completedIds: Set<string>) {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[patientId] = Array.from(completedIds);
+    localStorage.setItem(CHECKLIST_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function TaskDetail({ patient, siblings, workflow, currentStaffId, onMarkComplete }: Props) {
   const baseChecklist =
     workflow === "recall"
       ? recallChecklist
@@ -57,12 +112,16 @@ export default function TaskDetail({ patient, workflow }: Props) {
       ? treatmentChecklist
       : claimsChecklist;
 
-  // Reset checklist and notes when patient or workflow changes
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(baseChecklist);
+
+  // Load saved checklist state when patient changes
   useEffect(() => {
-    setChecklist(baseChecklist.map((item) => ({ ...item, completed: false })));
-    setNote("");
-    setNoteSaved(false);
-    setCompleted(false);
+    if (!patient) {
+      setChecklist(baseChecklist.map((item) => ({ ...item, completed: false })));
+      return;
+    }
+    const saved = loadChecklistState(patient.id);
+    setChecklist(baseChecklist.map((item) => ({ ...item, completed: saved.has(item.id) })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id, workflow]);
 
@@ -70,16 +129,28 @@ export default function TaskDetail({ patient, workflow }: Props) {
   const progress = Math.round((completedCount / checklist.length) * 100);
 
   const toggleItem = (id: string) => {
-    setChecklist((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, completed: !item.completed } : item
-      )
-    );
-  };
-
-  const handleSaveNote = () => {
-    setNoteSaved(true);
-    setTimeout(() => setNoteSaved(false), 2000);
+    if (!patient) return;
+    setChecklist((prev) => {
+      const next = prev.map((item) => {
+        if (item.id !== id) return item;
+        const nowCompleted = !item.completed;
+        if (nowCompleted) {
+          const today = new Date().toISOString().split("T")[0];
+          const now = new Date();
+          apiAddActivity(currentStaffId, today, {
+            id: `${Date.now()}`,
+            type: workflow,
+            description: `✓ ${item.label} — ${patient.patientName}`,
+            timeLabel: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+          });
+        }
+        return { ...item, completed: nowCompleted };
+      });
+      // Save updated state to localStorage
+      const completedIds = new Set(next.filter(i => i.completed).map(i => i.id));
+      saveChecklistState(patient.id, completedIds);
+      return next;
+    });
   };
 
   if (!patient) {
@@ -106,8 +177,32 @@ export default function TaskDetail({ patient, workflow }: Props) {
         transition={{ duration: 0.2 }}
         className="h-full overflow-y-auto p-5"
       >
+        {/* ── SIBLING TABS ──────────────────────────────────────────── */}
+        {siblings.length > 1 && (
+          <div className="flex gap-1.5 mb-3 flex-wrap">
+            {siblings.map((sib) => {
+              const isActive = sib.id === patient.id;
+              return (
+                <a
+                  key={sib.id}
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-default ${
+                    isActive
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-slate-500 border-slate-200"
+                  }`}
+                >
+                  {sib.patientName}
+                </a>
+              );
+            })}
+            <span className="text-[10px] text-slate-400 self-center ml-1">— click a sibling in the queue to switch</span>
+          </div>
+        )}
+
         {/* ── PATIENT HEADER ──────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-4">
+        <div className="bg-white rounded-xl border border-pink-100 shadow-sm p-5 mb-4">
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -126,30 +221,45 @@ export default function TaskDetail({ patient, workflow }: Props) {
                 Guardian: <span className="font-medium text-slate-700">{patient.guardianName}</span>
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-green-700">
-                ${patient.estimatedValue.toLocaleString()}
-              </div>
-              <div className="text-xs text-slate-400">estimated value</div>
-            </div>
           </div>
 
           {/* Info grid */}
           <div className="grid grid-cols-3 gap-3">
             <InfoCard icon={Phone} label="Phone" value={patient.phone} />
-            <InfoCard icon={Shield} label="Insurance" value={patient.insurance} />
-            <InfoCard icon={User} label="Provider" value={patient.provider} />
-            <InfoCard
-              icon={Clock}
-              label="Days Overdue"
-              value={`${patient.daysOverdue} days`}
-              valueClass="text-red-600 font-bold"
-            />
-            <InfoCard icon={Calendar} label="Last Visit" value={new Date(patient.lastVisit).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />
-            <InfoCard icon={User} label="Assigned To" value={patient.assignedStaff} />
+            {workflow === "treatment" ? (
+              <InfoCard
+                icon={DollarSign}
+                label="Tx Value"
+                value={`$${patient.estimatedValue.toLocaleString()}`}
+                valueClass="text-amber-700 font-bold"
+              />
+            ) : workflow === "claims" ? (
+              <InfoCard
+                icon={DollarSign}
+                label="Ins Balance"
+                value={`$${(patient.claimAmount ?? patient.estimatedValue).toLocaleString()}`}
+                valueClass="text-red-600 font-bold"
+              />
+            ) : (
+              <InfoCard
+                icon={Clock}
+                label="Days Overdue"
+                value={`${patient.daysOverdue} days`}
+                valueClass="text-red-600 font-bold"
+              />
+            )}
           </div>
 
           {/* Workflow-specific details */}
+          {workflow === "treatment" && patient.estimatedValue >= 1500 && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg">
+              <span className="text-base">⭐</span>
+              <div>
+                <span className="text-xs font-bold text-yellow-800">VIP Patient</span>
+                <span className="text-xs text-yellow-700 ml-1.5">— high-value treatment plan. Prioritize a warm, personal call. Focus on care, not sales.</span>
+              </div>
+            </div>
+          )}
           {workflow === "treatment" && (
             <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <p className="text-xs font-semibold text-amber-800 mb-1">Treatment Plan</p>
@@ -202,21 +312,23 @@ export default function TaskDetail({ patient, workflow }: Props) {
           )}
 
           {/* Next step */}
-          <div className="mt-3 flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <ChevronRight className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="mt-3 flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 rounded-lg">
+            <ChevronRight className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-blue-700 mb-0.5">Next Step</p>
-              <p className="text-sm text-blue-900">{patient.nextStep}</p>
+              <p className="text-xs font-semibold text-rose-700 mb-0.5">Next Step</p>
+              <p className="text-sm text-rose-900">{patient.nextStep}</p>
             </div>
           </div>
         </div>
 
-        {/* ── TWO COLUMNS: Checklist + Notes ─────────────────────── */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {/* Checklist */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        {/* ── COMMLOG OUTCOME BUTTONS ─────────────────────────────── */}
+        <CommlogButtons patientName={patient.patientName} />
+
+        {/* ── CHECKLIST ───────────────────────────────────────────── */}
+        <div className="mb-4">
+          <div className="bg-white rounded-xl border border-pink-100 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-900">Workflow Checklist</h3>
+              <h3 className="text-base font-semibold text-slate-900">Workflow Checklist</h3>
               <span className="text-xs font-medium text-slate-500">
                 {completedCount}/{checklist.length}
               </span>
@@ -225,7 +337,7 @@ export default function TaskDetail({ patient, workflow }: Props) {
             {/* Progress bar */}
             <div className="h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
               <motion.div
-                className="h-full bg-green-500 rounded-full"
+                className="h-full bg-gradient-to-r from-rose-400 to-pink-400 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.3 }}
@@ -235,103 +347,63 @@ export default function TaskDetail({ patient, workflow }: Props) {
             {/* Items */}
             <div className="space-y-2">
               {checklist.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => toggleItem(item.id)}
-                  className="flex items-start gap-2 w-full text-left group"
-                >
-                  {item.completed ? (
-                    <CheckSquare className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-slate-500" />
-                  )}
-                  <span
-                    className={`text-xs leading-relaxed ${
-                      item.completed
-                        ? "line-through text-slate-400"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </button>
+                <ChecklistRow key={item.id} item={item} onToggle={() => toggleItem(item.id)} />
               ))}
             </div>
           </div>
-
-          {/* Notes */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col">
-            <h3 className="text-sm font-semibold text-slate-900 mb-1">Staff Notes</h3>
-            {patient.notes && (
-              <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mb-2 italic border border-slate-100">
-                Previous: "{patient.notes}"
-              </div>
-            )}
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Document your communication here — what happened, what was said, next steps..."
-              className="flex-1 resize-none text-xs border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-700 placeholder:text-slate-300 min-h-[120px]"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-slate-400">{note.length} chars</span>
-              <button
-                onClick={handleSaveNote}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  noteSaved
-                    ? "bg-green-50 text-green-700 border border-green-200"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
-              >
-                {noteSaved ? (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Saved
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-3.5 h-3.5" />
-                    Save Note
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* ── ACTION BUTTONS ──────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-            Actions
-          </h3>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all">
-              <Phone className="w-3.5 h-3.5" />
-              Log Call
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-all">
-              <MessageSquare className="w-3.5 h-3.5" />
-              Send Text
-            </button>
-            <button
-              onClick={() => setCompleted(true)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all border ${
-                completed
-                  ? "bg-green-50 text-green-700 border-green-300"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <CheckCircle className={`w-3.5 h-3.5 ${completed ? "text-green-600" : ""}`} />
-              {completed ? "Marked Complete" : "Mark Complete"}
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition-all border border-red-200">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Escalate to Manager
-            </button>
-          </div>
-        </div>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+const COMMLOG_OUTCOMES = [
+  "Scheduled",
+  "Left VM",
+  "No Answer",
+  "Text Sent",
+  "Parent Will Call Back",
+  "Callback Requested",
+  "Declined",
+  "Moved",
+  "Other Dentist",
+  "Wrong Number",
+];
+
+function CommlogButtons({ patientName }: { patientName: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const handleClick = useCallback((label: string) => {
+    const text = `${label} — ${patientName}`;
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(label);
+    setTimeout(() => setCopied(null), 1800);
+  }, [patientName]);
+
+  return (
+    <div className="bg-white rounded-xl border border-pink-100 shadow-sm p-4 mb-4">
+      <h3 className="text-sm font-semibold text-slate-900 mb-2.5">Commlog Outcome</h3>
+      <p className="text-[11px] text-slate-400 mb-3">Click to copy outcome for Open Dental commlog</p>
+      <div className="flex flex-wrap gap-1.5">
+        {COMMLOG_OUTCOMES.map((label) => {
+          const isCopied = copied === label;
+          return (
+            <button
+              key={label}
+              onClick={() => handleClick(label)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                isCopied
+                  ? "bg-green-100 text-green-700 border-green-300"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300"
+              }`}
+            >
+              {isCopied ? "✓ Copied!" : label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -347,7 +419,7 @@ function InfoCard({
   valueClass?: string;
 }) {
   return (
-    <div className="bg-slate-50 rounded-lg p-2.5">
+    <div className="bg-pink-50/50 rounded-lg p-2.5">
       <div className="flex items-center gap-1.5 mb-0.5">
         <Icon className="w-3 h-3 text-slate-400" />
         <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">
